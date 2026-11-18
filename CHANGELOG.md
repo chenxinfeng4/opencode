@@ -2,6 +2,34 @@
 
 Release notes for OpenCode V2, newest first.
 
+## Unreleased
+
+### App
+
+#### Improvements
+
+- Add file explorer actions to the file list: right-click download, copy path, copy relative path, rename, and permanent delete.
+- Upload files and folders by dragging them onto the file list or pasting with `Ctrl/Cmd + V`, with the uploaded file expanded and highlighted.
+- Edit text files inline with syntax highlighting, and save with `Ctrl/Cmd + S`.
+- Show the file list when the side panel opens, keep the file sidebar from collapsing, and always render colored file icons.
+- Show DeepSeek as the featured provider.
+
+#### Breaking changes
+
+- Remove the OpenCode Console provider integration and its sign-in UI.
+
+### Core
+
+#### Improvements
+
+- Add experimental `fs.move` and `fs.remove` filesystem routes.
+
+### SDK
+
+#### Improvements
+
+- Expose `Files.read`, `Files.write`, `Files.move`, and `Files.remove` to GUI extensions.
+
 ## v2.0.29 — 2026-10-14
 
 ### Highlights
