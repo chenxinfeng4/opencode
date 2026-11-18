@@ -188,6 +188,10 @@ import type {
   FileListOutput,
   FileFindInput,
   FileFindOutput,
+  FileMoveInput,
+  FileMoveOutput,
+  FileRemoveInput,
+  FileRemoveOutput,
   CommandListInput,
   CommandListOutput,
   SkillListInput,
@@ -1212,7 +1216,26 @@ const EndpointFileFind = (raw: RawClient["server.fs"]) => (input: FileFindInput)
     }).pipe(Effect.mapError(mapClientError)),
   )
 
-const adaptGroupFile = (raw: RawClient["server.fs"]) => ({ list: EndpointFileList(raw), find: EndpointFileFind(raw) })
+const EndpointFileMove = (raw: RawClient["server.fs"]) => (input: FileMoveInput) =>
+  preserveEffect<FileMoveOutput>()(
+    raw["fs.move"]({ query: { location: input["location"], from: input["from"], to: input["to"] } }).pipe(
+      Effect.mapError(mapClientError),
+    ),
+  )
+
+const EndpointFileRemove = (raw: RawClient["server.fs"]) => (input: FileRemoveInput) =>
+  preserveEffect<FileRemoveOutput>()(
+    raw["fs.remove"]({
+      query: { location: input["location"], path: input["path"], recursive: input["recursive"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
+const adaptGroupFile = (raw: RawClient["server.fs"]) => ({
+  list: EndpointFileList(raw),
+  find: EndpointFileFind(raw),
+  move: EndpointFileMove(raw),
+  remove: EndpointFileRemove(raw),
+})
 
 const EndpointCommandList = (raw: RawClient["server.command"]) => (input?: CommandListInput) =>
   preserveEffect<CommandListOutput>()(

@@ -186,6 +186,10 @@ import type {
   FileFindOutput,
   FileWriteInput,
   FileWriteOutput,
+  FileMoveInput,
+  FileMoveOutput,
+  FileRemoveInput,
+  FileRemoveOutput,
   CommandListInput,
   CommandListOutput,
   SkillListInput,
@@ -1662,6 +1666,30 @@ export function make(options: ClientOptions) {
             declaredStatuses: [400, 401, 404],
             empty: false,
             binaryBody: true,
+          },
+          requestOptions,
+        ),
+      move: (input: FileMoveInput, requestOptions?: RequestOptions) =>
+        request<FileMoveOutput>(
+          {
+            method: "POST",
+            path: `/api/experimental/fs/move`,
+            query: { location: input["location"], from: input["from"], to: input["to"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      remove: (input: FileRemoveInput, requestOptions?: RequestOptions) =>
+        request<FileRemoveOutput>(
+          {
+            method: "POST",
+            path: `/api/experimental/fs/remove`,
+            query: { location: input["location"], path: input["path"], recursive: input["recursive"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404],
+            empty: false,
           },
           requestOptions,
         ),

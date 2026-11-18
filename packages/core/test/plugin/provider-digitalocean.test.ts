@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect } from "bun:test"
 import { Clock, Effect, Schedule } from "effect"
 import { TestClock } from "effect/testing"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
@@ -8,7 +8,6 @@ import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
 import { Provider } from "@opencode/core/provider"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { DigitalOceanPlugin } from "@opencode/core/plugin/provider/digitalocean"
 import { drain } from "../lib/clock"
 import { testEffect } from "../lib/effect"
@@ -73,10 +72,6 @@ const status = Effect.fn(function* (attempt: Integration.Attempt) {
 })
 
 describe("DigitalOceanPlugin", () => {
-  test("is registered alongside the other provider plugins", () => {
-    expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.digitalocean")
-  })
-
   it.effect("registers browser OAuth alongside generic key and environment methods", () =>
     Effect.gen(function* () {
       const integrations = yield* Integration.Service

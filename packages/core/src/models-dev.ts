@@ -82,6 +82,81 @@ export type Snapshot = {
   readonly environment: readonly string[]
 }
 
+/**
+ * Domestic (China) provider allowlist applied to the bundled snapshot and every fetched
+ * models.dev catalog. Providers outside this set are dropped before they reach the provider
+ * registry; user-configured providers bypass this filter entirely.
+ * Extend this set to re-admit a provider.
+ */
+const DOMESTIC_PROVIDER_IDS = new Set<string>([
+  // Alibaba Cloud / Qwen
+  "alibaba",
+  "alibaba-cn",
+  "alibaba-coding-plan",
+  "alibaba-coding-plan-cn",
+  "alibaba-token-plan",
+  "alibaba-token-plan-cn",
+  "modelscope",
+  // DeepSeek
+  "deepseek",
+  // Moonshot AI / Kimi
+  "moonshotai",
+  "moonshotai-cn",
+  "kimi-code-plan-cn",
+  "kimi-code-plan-global",
+  // Zhipu / Z.AI (GLM)
+  "zai",
+  "zai-coding-plan",
+  "zhipuai",
+  "zhipuai-coding-plan",
+  // MiniMax
+  "minimax",
+  "minimax-cn",
+  "minimax-coding-plan",
+  "minimax-cn-coding-plan",
+  // ByteDance Volcengine (Doubao)
+  "volcengine",
+  "volcengine-coding-plan",
+  // Tencent
+  "tencent-coding-plan",
+  "tencent-token-plan",
+  "tencent-tokenhub",
+  // StepFun
+  "stepfun",
+  "stepfun-ai",
+  "stepfun-ai-step-plan",
+  "stepfun-step-plan",
+  // SenseTime
+  "sensenova",
+  // SiliconFlow
+  "siliconflow",
+  "siliconflow-cn",
+  // Xiaomi (MiMo)
+  "xiaomi",
+  "xiaomi-token-plan-ams",
+  "xiaomi-token-plan-cn",
+  "xiaomi-token-plan-sgp",
+  // Meituan LongCat
+  "longcat",
+  // iFlow
+  "iflowcn",
+  // Domestic gateways and platforms
+  "302ai",
+  "aihubmix",
+  "agentrouter",
+  "bailing",
+  "drun",
+  "jiekou",
+  "kuae-cloud-coding-plan",
+  "qihang-ai",
+  "qiniu-ai",
+  "scnet-token-plan",
+])
+
+function domestic(input: Record<string, SourceProvider>): Record<string, SourceProvider> {
+  return Object.fromEntries(Object.entries(input).filter(([id]) => DOMESTIC_PROVIDER_IDS.has(id)))
+}
+
 function nativePackage(provider: SourceProvider, model?: SourceModel) {
   const npm = model?.provider?.npm ?? provider.npm
   return (
@@ -93,9 +168,11 @@ function nativePackage(provider: SourceProvider, model?: SourceModel) {
   )
 }
 
-function normalize(input: Record<string, SourceProvider>): readonly Snapshot[] {
+// `domesticOnly` filters the catalog down to DOMESTIC_PROVIDER_IDS; it stays off for an
+// explicitly provided catalog file, which is a user override rather than opencode's stock list.
+function normalize(catalog: Record<string, SourceProvider>, domesticOnly = true): readonly Snapshot[] {
   const providers: Snapshot[] = []
-  for (const item of Object.values(input)) {
+  for (const item of Object.values(domesticOnly ? domestic(catalog) : catalog)) {
     const providerID = Provider.ID.make(item.id)
     const packageName = nativePackage(item)
     const info = {
@@ -384,7 +461,7 @@ export const layer = (options?: Options) =>
 
       const populate = Effect.gen(function* () {
         const fromFile = yield* loadFromFile
-        if (fromFile) return normalize(fromFile)
+        if (fromFile) return normalize(fromFile, false)
         const cached = options?.file ? undefined : yield* loadFromCache()
         if (cached) return normalize(cached.catalog)
         const bundled = yield* loadSnapshot

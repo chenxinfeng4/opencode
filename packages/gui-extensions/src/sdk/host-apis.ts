@@ -213,6 +213,32 @@ export interface Files {
    */
   exists(path: string): Promise<boolean>
   /**
+   * Writes a workspace file, creating parent directories. Rejects when the server cannot write it.
+   *
+   * @param path - A workspace-relative path.
+   * @param data - The file's new bytes.
+   */
+  write(path: string, data: Uint8Array): Promise<void>
+  /**
+   * Reads a workspace file's raw bytes, e.g. to download it. Rejects when the server cannot read it.
+   *
+   * @param path - A workspace-relative path.
+   */
+  read(path: string): Promise<Uint8Array>
+  /**
+   * Moves or renames a workspace file or directory. Rejects when the server cannot move it.
+   *
+   * @param from - The existing workspace-relative path.
+   * @param to - The destination workspace-relative path.
+   */
+  move(from: string, to: string): Promise<void>
+  /**
+   * Removes a workspace file or directory and its contents. Rejects when the server cannot remove it.
+   *
+   * @param path - A workspace-relative path.
+   */
+  remove(path: string): Promise<void>
+  /**
    * Searches the workspace by fuzzy path.
    *
    * @param query - The search text.

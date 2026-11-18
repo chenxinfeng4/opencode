@@ -74,6 +74,7 @@
     "./hooks": "./src/hooks/index.ts",
     "./context": "./src/context/index.ts",
     "./context/*": "./src/context/*.tsx",
+    "./context/code-highlight": "./src/context/code-highlight.ts",
     "./storybook/scaffold": "./src/storybook/scaffold.tsx",
     "./storybook/fixtures": "./src/storybook/fixtures.ts",
     "./styles": "./src/styles/index.css",

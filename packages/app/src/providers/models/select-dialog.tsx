@@ -24,13 +24,7 @@ import { createMenuDismissController } from "@/shell/commands/menu-dismiss"
 import { createEventListener } from "@solid-primitives/event-listener"
 import { matchesModelSearch } from "./search"
 import { SettingsList } from "@/settings/list"
-import {
-  CONSOLE_GROUP_KEY,
-  consoleModelGroup,
-  ProviderModelIcon,
-  ProviderModelSections,
-} from "@/providers/models/provider-group"
-import { consoleProviderName } from "@/providers/catalog/console"
+import { ProviderModelIcon, ProviderModelSections } from "@/providers/models/provider-group"
 import "@/settings/settings.css"
 import "./select-dialog.css"
 
@@ -98,14 +92,9 @@ const ModelList: Component<{
   )
   const models = createMemo(() => controller.models(store.search))
   const modelGroups = createMemo(() => controller.groups(models()))
-  const managed = createMemo(() => consoleModelGroup(controller.all()))
   const expanded = (provider: string) => store.search.length > 0 || !store.collapsed[provider]
-  const managedIDs = createMemo(() => new Set(managed()?.providers.map((provider) => provider.id) ?? []))
 
-  const visibleModels = () =>
-    models().filter(
-      (item) => expanded(item.provider.id) && (!managedIDs().has(item.provider.id) || expanded(CONSOLE_GROUP_KEY)),
-    )
+  const visibleModels = () => models().filter((item) => expanded(item.provider.id))
 
   let scrollRef: HTMLDivElement | undefined
 
@@ -239,7 +228,6 @@ const ModelList: Component<{
           >
             <ProviderModelSections
               groups={modelGroups()}
-              managed={managed()}
               expanded={expanded}
               disabled={store.search.length > 0}
               onExpandedChange={(key, value) => setStore("collapsed", key, !value)}
@@ -515,21 +503,6 @@ export function ModelSelectorPopoverView(props: {
   const groups = createMemo(() => props.groups(models()))
   const keys = () => [...groups().flatMap((group) => group.items.map(modelKey)), manageKey]
 
-  const managed = createMemo(() => consoleModelGroup(props.all()))
-  const managedIDs = createMemo(() => new Set(managed()?.providers.map((provider) => provider.id)))
-  const canonical = (provider: ModelItem["provider"]) => provider.canonical ?? provider.id.replace(/^console-/, "")
-
-  // The workspace badge only disambiguates a managed provider that is also connected directly.
-  const direct = createMemo(
-    () =>
-      new Set(
-        props
-          .all()
-          .filter((item) => !managedIDs().has(item.provider.id))
-          .map((item) => canonical(item.provider)),
-      ),
-  )
-
   const initialActive = () => {
     const selected = props.current
     const options = keys()
@@ -700,21 +673,7 @@ export function ModelSelectorPopoverView(props: {
                         style={{ "padding-inline-start": group.items[0].provider.id === "opencode" ? "10px" : "12px" }}
                       >
                         <ProviderModelIcon provider={group.items[0].provider} class="shrink-0" />
-                        <Show
-                          when={managedIDs().has(group.category) ? managed() : undefined}
-                          fallback={<span class="min-w-0 truncate">{group.items[0].provider.name}</span>}
-                        >
-                          {(workspace) => (
-                            <>
-                              <span class="min-w-0 truncate">
-                                {consoleProviderName(workspace(), group.items[0].provider.name)}
-                              </span>
-                              <Show when={direct().has(canonical(group.items[0].provider))}>
-                                <Badge class="shrink-0">{workspace().workspace}</Badge>
-                              </Show>
-                            </>
-                          )}
-                        </Show>
+                        <span class="min-w-0 truncate">{group.items[0].provider.name}</span>
                       </Menu.GroupLabel>
                       <Menu.RadioGroup value={props.current}>
                         <For each={group.items}>

@@ -6365,6 +6365,46 @@ export type FileWriteInput = {
 
 export type FileWriteOutput = { location: LocationPublicRef; data: FileSystemWrite }
 
+export type FileMoveInput = {
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly from: string
+    readonly to: string
+  }["location"]
+  readonly from: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly from: string
+    readonly to: string
+  }["from"]
+  readonly to: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly from: string
+    readonly to: string
+  }["to"]
+}
+
+export type FileMoveOutput = { location: LocationPublicRef; data: FileSystemWrite }
+
+export type FileRemoveInput = {
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly path: string
+    readonly recursive?: boolean | undefined
+  }["location"]
+  readonly path: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly path: string
+    readonly recursive?: boolean | undefined
+  }["path"]
+  readonly recursive?: {
+    readonly location?: { readonly directory?: string | undefined } | undefined
+    readonly path: string
+    readonly recursive?: boolean | undefined
+  }["recursive"]
+}
+
+export type FileRemoveOutput = { location: LocationPublicRef; data: FileSystemWrite }
+
 export type CommandListInput = {
   readonly location?: { readonly location?: { readonly directory?: string | undefined } | undefined }["location"]
 }

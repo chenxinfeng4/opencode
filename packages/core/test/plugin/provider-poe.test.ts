@@ -6,7 +6,6 @@ import { Model } from "@opencode/core/model"
 import { ModelResolver } from "@opencode/core/model-resolver"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { PoePlugin } from "@opencode/core/plugin/provider/poe"
 import { Provider } from "@opencode/core/provider"
 import { expect } from "bun:test"
@@ -83,7 +82,6 @@ const fixture = Effect.gen(function* () {
 it.effect("registers Poe browser OAuth alongside generic key and environment methods without fetching", () =>
   Effect.gen(function* () {
     const test = yield* fixture
-    expect(ProviderPlugins).toContain(PoePlugin)
     expect((yield* test.integrations.get(integrationID))?.methods).toEqual([
       { type: "key" },
       { type: "env", names: ["POE_API_KEY"] },

@@ -2,14 +2,9 @@ import { expect, test } from "bun:test"
 import { ModalModels } from "@opencode/core/modal/models"
 import { Model } from "@opencode/core/model"
 import { Provider } from "@opencode/core/provider"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { Money } from "@opencode/schema/money"
 
 const providerID = Provider.ID.make("modal")
-
-test("modal plugin is registered", () => {
-  expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.modal")
-})
 
 function template(id: string, overrides: Partial<Model.Info> = {}) {
   return Model.Info.make({

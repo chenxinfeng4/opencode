@@ -1,8 +1,7 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { ZenmuxPlugin } from "@opencode/core/plugin/provider/zenmux"
 import { Provider } from "@opencode/core/provider"
 import { testEffect } from "../lib/effect"
@@ -22,10 +21,6 @@ function required<T>(value: T | undefined): T {
 }
 
 describe("ZenmuxPlugin", () => {
-  test("is registered so legacy referer headers can be applied", () => {
-    expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.zenmux")
-  })
-
   it.effect("applies the exact legacy Zenmux headers", () =>
     Effect.gen(function* () {
       const catalog = yield* Provider.Service

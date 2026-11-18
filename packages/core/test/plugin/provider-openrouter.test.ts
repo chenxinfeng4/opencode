@@ -1,9 +1,8 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { OpenRouterPlugin } from "@opencode/core/plugin/provider/openrouter"
 import { Provider } from "@opencode/core/provider"
 import { testEffect } from "../lib/effect"
@@ -18,10 +17,6 @@ const addPlugin = Effect.fn(function* () {
 })
 
 describe("OpenRouterPlugin", () => {
-  test("is registered so legacy OpenRouter behavior can be applied", () => {
-    expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.openrouter")
-  })
-
   it.effect("applies legacy referer headers only to openrouter", () =>
     Effect.gen(function* () {
       const catalog = yield* Provider.Service

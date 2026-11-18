@@ -22,6 +22,22 @@ export const WriteInput = Schema.Struct({
 })
 export type WriteInput = typeof WriteInput.Type
 
+export const MoveInput = Schema.Struct({
+  /** Absolute, or relative to the location directory. */
+  from: Schema.String,
+  /** Absolute, or relative to the location directory. */
+  to: Schema.String,
+})
+export type MoveInput = typeof MoveInput.Type
+
+export const RemoveInput = Schema.Struct({
+  /** Absolute, or relative to the location directory. */
+  path: Schema.String,
+  /** Remove directories and their contents. Defaults to true. */
+  recursive: Schema.optional(Schema.Boolean),
+})
+export type RemoveInput = typeof RemoveInput.Type
+
 export class NotFoundError extends Schema.TaggedError<NotFoundError>()("FileSystem.NotFoundError", {
   path: RelativePath,
 }) {}
@@ -104,6 +120,10 @@ export interface Interface {
   readonly find: (input: FindInput) => Effect.Effect<Entry[]>
   /** Writes a file at an absolute path or one relative to the location; not confined to it. */
   readonly write: (input: WriteInput) => Effect.Effect<Write>
+  /** Moves or renames a file or directory, confined to the location directory. */
+  readonly move: (input: MoveInput) => Effect.Effect<Write, NotFoundError>
+  /** Removes a file or directory, confined to the location directory. */
+  readonly remove: (input: RemoveInput) => Effect.Effect<Write, NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/FileSystem") {}
@@ -210,6 +230,24 @@ const baseLayer = Layer.effect(
       write: Effect.fn("FileSystem.write")(function* (input) {
         const target = path.resolve(location.directory, input.path)
         yield* fs.writeWithDirs(target, input.data).pipe(Effect.orDie)
+        return Write.make({ path: AbsolutePath.make(target) })
+      }),
+      move: Effect.fn("FileSystem.move")(function* (input) {
+        const from = path.resolve(location.directory, input.from)
+        const to = path.resolve(location.directory, input.to)
+        if (from === location.directory || !FSUtil.contains(location.directory, from))
+          return yield* Effect.fail(new NotFoundError({ path: RelativePath.make(input.from) }))
+        if (!FSUtil.contains(location.directory, to))
+          return yield* Effect.fail(new NotFoundError({ path: RelativePath.make(input.to) }))
+        yield* fs.makeDirectory(path.dirname(to), { recursive: true }).pipe(Effect.orDie)
+        yield* fs.rename(from, to).pipe(Effect.orDie)
+        return Write.make({ path: AbsolutePath.make(to) })
+      }),
+      remove: Effect.fn("FileSystem.remove")(function* (input) {
+        const target = path.resolve(location.directory, input.path)
+        if (target === location.directory || !FSUtil.contains(location.directory, target))
+          return yield* Effect.fail(new NotFoundError({ path: RelativePath.make(input.path) }))
+        yield* fs.remove(target, { recursive: input.recursive ?? true }).pipe(Effect.orDie)
         return Write.make({ path: AbsolutePath.make(target) })
       }),
     })

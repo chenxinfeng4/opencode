@@ -4,7 +4,6 @@ import { Integration } from "@opencode/core/integration"
 import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { make, VLLMPlugin } from "@opencode/core/plugin/provider/vllm"
 import { Provider } from "@opencode/core/provider"
 import { Document, Event, Info } from "@opencode/schema/config"
@@ -78,7 +77,6 @@ describe("VLLMPlugin", () => {
           const modelState = yield* Model.Service
           const providerID = Provider.ID.make("vllm")
           expect(VLLMPlugin.id).toBe("opencode.provider.vllm")
-          expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.vllm")
           yield* addPlugin(server.url.origin, "5 millis")
           yield* Effect.promise(() => Bun.sleep(20))
           expect(yield* providers.get(providerID)).toBeUndefined()

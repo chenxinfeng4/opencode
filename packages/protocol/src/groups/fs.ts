@@ -1,10 +1,17 @@
 import { FileSystem } from "@opencode/schema/filesystem"
 import { Location } from "@opencode/schema/location"
 import { PositiveInt } from "@opencode/schema/schema"
-import { Schema } from "effect"
+import { Schema, SchemaGetter } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { FileNotFoundError } from "../errors.js"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"
+
+const BooleanFromString = Schema.Literals(["true", "false"]).pipe(
+  Schema.decodeTo(Schema.Boolean, {
+    decode: SchemaGetter.transform((value) => value === "true"),
+    encode: SchemaGetter.transform((value): "true" | "false" => (value ? "true" : "false")),
+  }),
+)
 
 const ListQuery = Schema.Struct({
   ...LocationQuery.fields,
@@ -26,6 +33,26 @@ const FindQuery = Schema.Struct({
   query: FileSystem.FindInput.fields.query,
   type: FileSystem.FindInput.fields.type,
   limit: Schema.NumberFromString.pipe(Schema.decodeTo(PositiveInt), Schema.optional),
+})
+
+const MoveQuery = Schema.Struct({
+  ...LocationQuery.fields,
+  from: Schema.String.annotate({
+    description: "An absolute path or a path relative to the requested location.",
+  }),
+  to: Schema.String.annotate({
+    description: "An absolute path or a path relative to the requested location.",
+  }),
+})
+
+const RemoveQuery = Schema.Struct({
+  ...LocationQuery.fields,
+  path: Schema.String.annotate({
+    description: "An absolute path or a path relative to the requested location.",
+  }),
+  recursive: BooleanFromString.pipe(Schema.optional).annotate({
+    description: "Remove directories and their contents. Defaults to true.",
+  }),
 })
 
 export const FileSystemGroup = HttpApiGroup.make("server.fs")
@@ -88,6 +115,38 @@ export const FileSystemGroup = HttpApiGroup.make("server.fs")
           summary: "Write file",
           description:
             "Write the raw request body to an absolute path or a path relative to the requested location, creating parent directories, and return the resolved absolute path. Unlike read, the target is not confined to the location. Experimental: may change without compatibility guarantees.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("fs.move", "/api/experimental/fs/move", {
+      query: MoveQuery,
+      success: Location.response(FileSystem.Write),
+      error: FileNotFoundError,
+    })
+      .annotateMerge(locationQueryOpenApi)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "experimental.fs.move",
+          summary: "Move or rename",
+          description:
+            "Move or rename a file or directory between two paths relative to the requested location, confined to that location. Experimental: may change without compatibility guarantees.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("fs.remove", "/api/experimental/fs/remove", {
+      query: RemoveQuery,
+      success: Location.response(FileSystem.Write),
+      error: FileNotFoundError,
+    })
+      .annotateMerge(locationQueryOpenApi)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "experimental.fs.remove",
+          summary: "Remove file or directory",
+          description:
+            "Remove a file or directory at an absolute path or one relative to the requested location, confined to that location. Experimental: may change without compatibility guarantees.",
         }),
       ),
   )

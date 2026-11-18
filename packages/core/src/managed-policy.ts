@@ -7,7 +7,7 @@ import { ConfigPolicy } from "@opencode/schema/config/policy"
 import { Context, Effect, Layer, PubSub, Stream } from "effect"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 
-/** Policy statements the connected OpenCode Console compiled for whoever it authenticated. */
+/** Managed policy statements delivered by the server or repository configuration. */
 export interface State {
   readonly statements: ReadonlyArray<ConfigPolicy.Info>
   /** Organization name for denial messages, when the connection knows it. */

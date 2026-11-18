@@ -53,14 +53,14 @@
 }
 
 [data-component="file-tree-v2"] [data-slot="file-tree-v2-row"][data-selected] {
-  --file-tree-v2-row-overlay: var(--v2-overlay-simple-overlay-pressed);
+  --file-tree-v2-row-overlay: var(--v2-background-bg-layer-03);
 
   color: var(--v2-text-text-base);
-  background-color: var(--v2-overlay-simple-overlay-pressed);
+  background-color: var(--v2-background-bg-layer-03);
 }
 
 [data-component="file-tree-v2"] [data-slot="file-tree-v2-row"][data-selected]:hover {
-  background-color: var(--v2-overlay-simple-overlay-pressed);
+  background-color: var(--v2-background-bg-layer-03);
 }
 
 [data-component="file-tree-v2"]
@@ -88,10 +88,11 @@
 
 [data-component="file-tree-v2"] .filetree-icon--mono {
   color: var(--v2-icon-icon-muted);
+  display: none;
 }
 
 [data-component="file-tree-v2"] .filetree-iconpair .filetree-icon--color {
-  opacity: 0;
+  opacity: 1;
 }
 
 [data-component="file-tree-v2"] [data-slot="file-tree-v2-row"][data-selected] .filetree-iconpair .filetree-icon--color {

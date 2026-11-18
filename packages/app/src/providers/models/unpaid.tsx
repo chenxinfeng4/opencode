@@ -37,9 +37,6 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
   const isFree = (item: ReturnType<ModelState["list"]>[number]) =>
     item.provider.id === "opencode" && (!item.cost || item.cost.input === 0)
 
-  const providerName = (provider: { id: string; name: string }) =>
-    provider.id === "opencode" ? language.t("provider.connect.opencode.name") : provider.name
-
   const freeModels = createMemo(() => model.list().filter(isFree))
 
   const openProviders = (provider?: string) => {
@@ -159,11 +156,11 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                       onClick={() => openProviders(provider.id)}
                     >
                       <ProviderModelIcon
-                        provider={{ id: provider.id, name: providerName(provider) }}
+                        provider={{ id: provider.id, name: provider.name }}
                         class="mt-0.5 shrink-0 text-v2-icon-icon-base"
                       />
                       <span class="flex min-w-0 flex-col">
-                        <span class="truncate">{providerName(provider)}</span>
+                        <span class="truncate">{provider.name}</span>
                         <Show when={provider.id === "opencode" || provider.id === "opencode-go"}>
                           <span class="truncate font-[440] text-v2-text-text-muted">
                             {language.t(

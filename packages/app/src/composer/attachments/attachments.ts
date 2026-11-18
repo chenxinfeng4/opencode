@@ -201,6 +201,8 @@ export function createComposerAttachments(
 
   const handleDrop = async (event: DragEvent) => {
     if (input.isDialogActive()) return
+    // A dedicated drop target, such as the file explorer, already handled this drop.
+    if (event.defaultPrevented) return
     event.preventDefault()
     clearDrag()
     const plainText = event.dataTransfer?.getData("text/plain")
@@ -224,6 +226,12 @@ export function createComposerAttachments(
     if (cancel) onCleanup(cancel)
     makeEventListener(document, "dragover", (event) => {
       if (input.isDialogActive()) return
+      // A dedicated drop target, such as the file explorer, owns this drag.
+      if (event.defaultPrevented) {
+        input.setDraggingType(null)
+
+        return
+      }
       event.preventDefault()
 
       if (event.dataTransfer?.types.includes("Files")) input.setDraggingType("image")

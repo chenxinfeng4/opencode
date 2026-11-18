@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { Money } from "@opencode/schema/money"
 import { Effect, Fiber, Layer, Ref, Scope, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@opencode/util/effect/app-node-platform"
 import { LayerNode } from "@opencode/util/effect/layer-node"
@@ -22,15 +25,15 @@ test("normalizes permissive interleaved values to compatibility", () => {
 })
 
 const fixture = {
-  acme: {
-    id: "acme",
-    name: "Acme",
-    env: ["ACME_API_KEY"],
+  modelscope: {
+    id: "modelscope",
+    name: "ModelScope",
+    env: ["MODELSCOPE_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
     models: {
-      "acme-1": {
-        id: "acme-1",
-        name: "Acme One",
+      "modelscope-1": {
+        id: "modelscope-1",
+        name: "ModelScope One",
         release_date: "2026-01-01",
         attachment: false,
         reasoning: false,
@@ -46,21 +49,21 @@ const fixture = {
 const fixtureSnapshot = [
   {
     info: {
-      id: Provider.ID.make("acme"),
-      name: "Acme",
+      id: Provider.ID.make("modelscope"),
+      name: "ModelScope",
       activation: "auto",
       package: "@opencode/ai/providers/openai-compatible",
     },
     models: [
       {
-        id: Model.ID.make("acme-1"),
-        modelID: Model.ID.make("acme-1"),
-        providerID: Provider.ID.make("acme"),
-        name: "Acme One",
+        id: Model.ID.make("modelscope-1"),
+        modelID: Model.ID.make("modelscope-1"),
+        providerID: Provider.ID.make("modelscope"),
+        name: "ModelScope One",
         compatibility: { reasoningField: "vendor_reasoning" },
         family: undefined,
         package: undefined,
-        settings: { provider: "acme" },
+        settings: { provider: "modelscope" },
         capabilities: { tools: true, input: [], output: [] },
         variants: [],
         time: { released: Date.parse("2026-01-01") },
@@ -81,20 +84,20 @@ const fixtureSnapshot = [
         body: undefined,
       },
     ],
-    environment: ["ACME_API_KEY"],
+    environment: ["MODELSCOPE_API_KEY"],
   },
 ] satisfies readonly ModelsDev.Snapshot[]
 
 const fixture2 = {
-  beta: {
-    id: "beta",
-    name: "Beta",
-    env: ["BETA_API_KEY"],
+  siliconflow: {
+    id: "siliconflow",
+    name: "SiliconFlow",
+    env: ["SILICONFLOW_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
     models: {
-      "beta-1": {
-        id: "beta-1",
-        name: "Beta One",
+      "siliconflow-1": {
+        id: "siliconflow-1",
+        name: "SiliconFlow One",
         release_date: "2026-02-01",
         attachment: false,
         reasoning: true,
@@ -109,20 +112,20 @@ const fixture2 = {
 const fixture2Snapshot = [
   {
     info: {
-      id: Provider.ID.make("beta"),
-      name: "Beta",
+      id: Provider.ID.make("siliconflow"),
+      name: "SiliconFlow",
       activation: "auto",
       package: "@opencode/ai/providers/openai-compatible",
     },
     models: [
       {
-        id: Model.ID.make("beta-1"),
-        modelID: Model.ID.make("beta-1"),
-        providerID: Provider.ID.make("beta"),
-        name: "Beta One",
+        id: Model.ID.make("siliconflow-1"),
+        modelID: Model.ID.make("siliconflow-1"),
+        providerID: Provider.ID.make("siliconflow"),
+        name: "SiliconFlow One",
         family: undefined,
         package: undefined,
-        settings: { provider: "beta" },
+        settings: { provider: "siliconflow" },
         capabilities: { tools: false, input: [], output: [] },
         variants: [],
         time: { released: Date.parse("2026-02-01") },
@@ -143,7 +146,7 @@ const fixture2Snapshot = [
         body: undefined,
       },
     ],
-    environment: ["BETA_API_KEY"],
+    environment: ["SILICONFLOW_API_KEY"],
   },
 ] satisfies readonly ModelsDev.Snapshot[]
 
@@ -236,13 +239,14 @@ describe("ModelsDev Service", () => {
 
   it.live("maps models.dev npm packages onto native packages", () =>
     Effect.gen(function* () {
-      const cache = makeCache()
-      writeCache(cache, {
-        acme: {
-          ...fixture.acme,
+      // Stock catalogs are filtered to domestic providers, so this mapping test loads its
+      // catalog through the explicit-file path, which is not filtered.
+      const catalog = {
+        modelscope: {
+          ...fixture.modelscope,
           models: {
-            "acme-1": {
-              ...fixture.acme.models["acme-1"],
+            "modelscope-1": {
+              ...fixture.modelscope.models["modelscope-1"],
               provider: { npm: "@ai-sdk/openai" },
             },
           },
@@ -262,22 +266,30 @@ describe("ModelsDev Service", () => {
           npm: "@ai-sdk/azure",
           models: {
             "gpt-5": {
-              ...fixture.acme.models["acme-1"],
+              ...fixture.modelscope.models["modelscope-1"],
               id: "gpt-5",
             },
             "custom-chat": {
-              ...fixture.acme.models["acme-1"],
+              ...fixture.modelscope.models["modelscope-1"],
               id: "custom-chat",
               provider: { shape: "completions" },
             },
           },
         },
-      })
-      const state = yield* Ref.make(initialState)
-      const result = yield* provided(
-        state,
-        cache,
+      }
+      const directory = yield* Effect.sync(() => mkdtempSync(join(tmpdir(), "opencode-models-dev-")))
+      yield* Effect.addFinalizer(() => Effect.sync(() => rmSync(directory, { recursive: true, force: true })))
+      const file = join(directory, "catalog.json")
+      yield* Effect.sync(() => writeFileSync(file, JSON.stringify(catalog)))
+      const result = yield* Effect.provide(
         ModelsDev.Service.use((service) => service.get()),
+        Layer.fresh(
+          AppNodeBuilder.build(LayerNode.group([ModelsDev.node, Bus.node]), [
+            ModelsDev.node.replace(ModelsDev.configured({ file, fetch: false })),
+            LayerNodePlatform.httpClient.replace(Layer.succeed(HttpClient.HttpClient, makeMockClient(yield* Ref.make(initialState)))),
+            KV.node.replace(makeMockKV(makeCache())),
+          ]),
+        ),
       )
       expect(result[0]?.info.package).toBe("@opencode/ai/providers/openai-compatible")
       expect(result[0]?.models[0]?.package).toBe("@opencode/ai/providers/openai")
@@ -314,10 +326,33 @@ describe("ModelsDev Service", () => {
         ModelsDev.Service.use((s) => s.get()),
       )
       expect(result.length).toBeGreaterThan(0)
-      const anthropic = result.find((snapshot) => snapshot.info.id === "anthropic")
-      expect(anthropic?.environment).toContain("ANTHROPIC_API_KEY")
+      const deepseek = result.find((snapshot) => snapshot.info.id === "deepseek")
+      expect(deepseek?.environment).toContain("DEEPSEEK_API_KEY")
       const final = yield* Ref.get(state)
       expect(final.calls).toEqual([])
+    }),
+  )
+
+  it.live("get() filters stock catalogs down to domestic providers", () =>
+    Effect.gen(function* () {
+      const cache = makeCache()
+      writeCache(cache, {
+        ...fixture,
+        openai: {
+          id: "openai",
+          name: "OpenAI",
+          env: ["OPENAI_API_KEY"],
+          npm: "@ai-sdk/openai",
+          models: {},
+        },
+      })
+      const state = yield* Ref.make(initialState)
+      const result = yield* provided(
+        state,
+        cache,
+        ModelsDev.Service.use((s) => s.get()),
+      )
+      expect(result.map((snapshot) => snapshot.info.id)).toEqual([Provider.ID.make("modelscope")])
     }),
   )
 

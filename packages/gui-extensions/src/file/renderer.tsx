@@ -268,7 +268,9 @@ const setup: Setup<typeof File> = (ctx) => {
       </div>
     ),
     draggable: false,
-    closable: "hover",
+    closable: false,
+    pinned: true,
+    fallback: true,
     transient: true,
     group: GROUP,
     dom: { panel: TABPANEL },
@@ -318,22 +320,25 @@ const setup: Setup<typeof File> = (ctx) => {
       icon: "folder",
     },
     list(input) {
-      return input.open.flatMap((id) => {
-        if (id === OPEN) return [launcher]
+      return [
+        launcher,
+        ...input.open.flatMap((id) => {
+          if (id === OPEN) return []
 
-        if (!isFileTab(id)) return []
+          if (!isFileTab(id)) return []
 
-        const cache = tabsOf(input.screen)
-        const existing = cache.get(id)
+          const cache = tabsOf(input.screen)
+          const existing = cache.get(id)
 
-        if (existing) return [existing]
+          if (existing) return [existing]
 
-        const created = fileTab(input.screen.file, id)
+          const created = fileTab(input.screen.file, id)
 
-        cache.set(id, created)
+          cache.set(id, created)
 
-        return [created]
-      })
+          return [created]
+        }),
+      ]
     },
     close(input) {
       tabs.get(input.screen)?.delete(input.tab.id)

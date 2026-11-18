@@ -24,16 +24,6 @@ type Polling = {
   attempt?: Authorization
 }
 
-// OpenCode Go and OpenCode Zen both bill through the OpenCode Console, so the
-// Console sign-in is the connection method for both providers.
-export const CONSOLE_INTEGRATION = "opencode"
-
-export const CONSOLE_PROVIDERS = new Set(["opencode", "opencode-go"])
-
-export function consoleIntegration(provider: string) {
-  return CONSOLE_PROVIDERS.has(provider) ? CONSOLE_INTEGRATION : provider
-}
-
 export function providerFormDefaults(fields: ProviderConnectMethod["form"]) {
   return (fields ?? []).reduce<FormAnswer>((answer, field) => {
     if (field.type === "external" || !field.hidden || field.default === undefined) return answer
@@ -64,8 +54,6 @@ export function createProviderConnectionController(options: {
   onComplete: () => void
   /** Skips auto-selecting a lone method; the caller starts it. */
   manual?: () => boolean
-  /** Runs after the catalogs refresh; returning false keeps the dialog on a retryable error. */
-  prepare?: (active: () => boolean) => Promise<boolean>
   pollInterval?: number
 }) {
   const language = useLanguage()
@@ -78,8 +66,6 @@ export function createProviderConnectionController(options: {
 
     return directory ? { directory } : undefined
   }
-
-  const isConsole = () => options.provider() === CONSOLE_INTEGRATION
 
   // Not createResource: the dialog is owned by whichever page opened it, so reading a pending
   // resource here would suspend that page's <Suspense> and blank the screen behind the dialog.
@@ -251,16 +237,7 @@ export function createProviderConnectionController(options: {
       .then(() => true)
       .catch(() => false)
 
-    if (!active()) return
-    const prepared = refreshed && options.prepare ? await options.prepare(active) : refreshed
-
-    if (!active()) return
-
-    if (!prepared && options.prepare) {
-      dispatch({ type: "auth.error", error: language.t("provider.connect.console.refreshFailed") })
-
-      return
-    }
+    if (!active() || !refreshed) return
 
     setStore("state", "ready")
     options.onComplete()
@@ -280,12 +257,7 @@ export function createProviderConnectionController(options: {
 
     if (!result.ok) {
       setStore("statusFailed", true)
-      dispatch({
-        type: "auth.error",
-        error: isConsole()
-          ? language.t("provider.connect.console.statusFailed")
-          : formatServerError(result.error, language.t),
-      })
+      dispatch({ type: "auth.error", error: formatServerError(result.error, language.t) })
 
       return
     }
@@ -298,26 +270,14 @@ export function createProviderConnectionController(options: {
 
     if (result.status.status === "failed") {
       polling.attempt = undefined
-      const message = result.status.message
-      dispatch({
-        type: "auth.error",
-        error:
-          isConsole() && message.includes("expired_token")
-            ? language.t("provider.connect.console.expired")
-            : isConsole() && message.includes("access_denied")
-              ? language.t("provider.connect.console.denied")
-              : message,
-      })
+      dispatch({ type: "auth.error", error: result.status.message })
 
       return
     }
 
     if (result.status.status === "expired") {
       polling.attempt = undefined
-      dispatch({
-        type: "auth.error",
-        error: language.t(isConsole() ? "provider.connect.console.expired" : "provider.connect.oauth.expired"),
-      })
+      dispatch({ type: "auth.error", error: language.t("provider.connect.oauth.expired") })
 
       return
     }
@@ -405,17 +365,7 @@ export function createProviderConnectionController(options: {
         answer: Object.keys(merged).length ? merged : undefined,
         location: location(),
       })
-      .then((response) => {
-        if (isConsole() && platform.platform === "desktop") {
-          const url = new URL(response.data.url)
-          url.searchParams.set("client_id", "opencode-desktop")
-          // Lets the Console return link focus the window that started the sign-in.
-          url.searchParams.set("return_window", platform.windowID)
-          response.data.url = url.href
-        }
-
-        return { ok: true as const, authorization: response.data }
-      })
+      .then((response) => ({ ok: true as const, authorization: response.data }))
       .catch((error) => ({ ok: false as const, error }))
 
     if (polling.disposed || generation !== polling.generation) {
@@ -432,12 +382,7 @@ export function createProviderConnectionController(options: {
     }
 
     if (!result.ok) {
-      dispatch({
-        type: "auth.error",
-        error: isConsole()
-          ? language.t("provider.connect.console.startFailed")
-          : formatServerError(result.error, language.t),
-      })
+      dispatch({ type: "auth.error", error: formatServerError(result.error, language.t) })
 
       return
     }

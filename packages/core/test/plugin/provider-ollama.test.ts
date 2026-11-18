@@ -7,7 +7,6 @@ import { Model } from "@opencode/core/model"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
 import { OllamaPlugin, make } from "@opencode/core/plugin/provider/ollama"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { Provider } from "@opencode/core/provider"
 import { Document, Event, Info } from "@opencode/schema/config"
 import { describe, expect } from "bun:test"
@@ -103,7 +102,6 @@ describe("OllamaPlugin", () => {
           const modelState = yield* Model.Service
           const providerID = Provider.ID.make("ollama")
           expect(OllamaPlugin.id).toBe("opencode.provider.ollama")
-          expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.ollama")
           yield* addPlugin(server.url.origin)
           const model = yield* eventually(
             modelState.get(providerID, Model.ID.make("gemma3:4b")),

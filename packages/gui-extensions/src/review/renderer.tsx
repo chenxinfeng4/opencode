@@ -1,12 +1,10 @@
 import {
-  batch,
   createMemo,
   createRoot,
   createSignal,
   getOwner,
   lazy,
   onCleanup,
-  Show,
   Suspense,
   untrack,
 } from "solid-js"
@@ -15,10 +13,7 @@ import type { FileDiffInfo } from "@opencode/client/promise"
 import {
   createKeyed,
   LinkHandler,
-  Panel,
   SettingsPage,
-  usePanel,
-  type PanelTab,
   type SessionScreen,
   type SessionRef,
   type MountedSession,
@@ -28,10 +23,6 @@ import {
 import { Changes, type ChangeKind } from "./contract"
 import type Review from "./index"
 import { createReviewModel, type Demand, type ReviewModel } from "./model"
-
-const TAB = "changes"
-
-const KEY = `review:${TAB}`
 
 const setup: Setup<typeof Review> = (ctx) => {
   const owner = getOwner()
@@ -112,99 +103,6 @@ const setup: Setup<typeof Review> = (ctx) => {
     return model && model.view().key === session.key ? model : undefined
   }
 
-  const count = () => entry()?.model.count() ?? 0
-
-  // One tab object for every session, so a session switch never renders its trigger again.
-  const tab: PanelTab = {
-    id: TAB,
-    get title() {
-      return count() > 0 ? ctx.plural("tab.count", count()) : ctx.t("tab.title")
-    },
-    pinned: true,
-    // Without focusable content the panel itself joins the tab order.
-    get tabbable() {
-      return !(count() > 0 || layout.sidebar.opened())
-    },
-    fallback: true,
-    dom: { tab: "session-side-panel-review-tab", panel: "session-side-panel-review-tabpanel" },
-  }
-
-  const ReviewPanel = lazy(() => import("./panel"))
-  const MobileReview = lazy(() => import("./mobile"))
-
-  onCleanup(onIdle(() => void (layout.narrow() ? MobileReview : ReviewPanel).preload()))
-
-  ctx.add(Panel, {
-    id: "main",
-    region: "side",
-    // The split diff needs the wider session minimum while the side region is open.
-    get wide() {
-      return diff.value.diffStyle === "split"
-    },
-    // The review tab is pinned, never stored; a stored key, such as one from before extensions, leaves the strip.
-    transient: true,
-    legacy: { review: TAB },
-    mobile: {
-      get title() {
-        return ctx.plural("mobile.title", 0)
-      },
-      order: 10,
-      kind: "tab",
-    },
-    list: (input) => (!layout.narrow() && input.session.project ? [tab] : []),
-    render: (props) => {
-      const frame = usePanel()
-
-      // A server switch mounts a new screen before the owned model effect runs. Never render the old screen's model.
-      const model = () => {
-        const current = entry()
-
-        return current?.screen === props.screen ? current.model : undefined
-      }
-
-      return (
-        <Show when={model()} keyed>
-          {(model) => {
-            createKeyed(frame.visible, () => onCleanup(watch(props.screen, "panel")))
-
-            return (
-              <Show
-                when={frame.placement() === "mobile"}
-                fallback={
-                  <div class="flex flex-col h-full overflow-hidden bg-v2-background-bg-base contain-strict">
-                    <Show when={model.panelRendered()}>
-                      <Suspense>
-                        <ReviewPanel
-                          review={model}
-                          session={props.session}
-                          diffStyle={diff.value.diffStyle}
-                          onDiffStyleChange={(style) =>
-                            diff.update((draft) => {
-                              draft.diffStyle = style
-                            })
-                          }
-                          expandMode={panel.value.expandMode}
-                          onExpandModeChange={(mode) =>
-                            panel.update((draft) => {
-                              draft.expandMode = mode
-                            })
-                          }
-                        />
-                      </Suspense>
-                    </Show>
-                  </div>
-                }
-              >
-                <Suspense>
-                  <MobileReview review={model} session={props.session} />
-                </Suspense>
-              </Show>
-            )
-          }}
-        </Show>
-      )
-    },
-  })
 
   const reveals = new Set<() => void>()
 
@@ -217,13 +115,8 @@ const setup: Setup<typeof Review> = (ctx) => {
 
       if (!session || (link.session && link.session.key !== session.key)) return
 
-      batch(() => {
-        // Narrow screens keep their view, as they did before extensions.
-        if (!layout.narrow() && session.project) layout.open(KEY, session)
-
-        reveals.forEach((listener) => listener())
-        modelFor(session)?.focusFile(link.href)
-      })
+      reveals.forEach((listener) => listener())
+      modelFor(session)?.focusFile(link.href)
     },
   })
 
@@ -262,8 +155,8 @@ const setup: Setup<typeof Review> = (ctx) => {
     details: (session) => modelFor(session)?.details(),
     focus: (session, path) => modelFor(session)?.focusFile(path),
     open(session) {
-      // The session details' changes row: narrow screens switch to the Changes view; wide ones open the side region.
-      if (layout.narrow()) return layout.open(KEY, session)
+      // The session details' changes row opens the side region on wide screens.
+      if (layout.narrow()) return
 
       if (!layout.side.opened(session)) layout.side.toggle(session)
     },

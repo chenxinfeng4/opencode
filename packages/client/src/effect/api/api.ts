@@ -1770,9 +1770,27 @@ export type FileFindInput = {
 export type FileFindOutput = { readonly location: Location.PublicRef; readonly data: ReadonlyArray<FileSystem.Entry> }
 export type FileFindOperation<E = never> = (input: FileFindInput) => Effect.Effect<FileFindOutput, E>
 
+export type FileMoveInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+  readonly from: string
+  readonly to: string
+}
+export type FileMoveOutput = { readonly location: Location.PublicRef; readonly data: FileSystem.Write }
+export type FileMoveOperation<E = never> = (input: FileMoveInput) => Effect.Effect<FileMoveOutput, E>
+
+export type FileRemoveInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+  readonly path: string
+  readonly recursive?: boolean | undefined
+}
+export type FileRemoveOutput = { readonly location: Location.PublicRef; readonly data: FileSystem.Write }
+export type FileRemoveOperation<E = never> = (input: FileRemoveInput) => Effect.Effect<FileRemoveOutput, E>
+
 export interface FileApi<E = never> {
   readonly list: FileListOperation<E>
   readonly find: FileFindOperation<E>
+  readonly move: FileMoveOperation<E>
+  readonly remove: FileRemoveOperation<E>
 }
 
 export type CommandListInput = { readonly location?: { readonly directory?: string | undefined } | undefined }

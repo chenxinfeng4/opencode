@@ -94,6 +94,24 @@ export function createMountedSession(session: SessionModel) {
     missing: file.notFound,
     sync: (path, options) => file.load(path, options),
     exists: file.exists,
+    write: async (path, data) => {
+      await server.ctx.sdk.api.file.write({ path, payload: data, location: location().ref })
+      const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""
+      await file.tree.refresh(parent)
+    },
+    read: (path) => server.ctx.sdk.api.file.read({ path, location: location().ref }),
+    move: async (from, to) => {
+      await server.ctx.sdk.api.file.move({ from, to, location: location().ref })
+      const parent = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "")
+      await Promise.all(
+        [...new Set([parent(from), parent(to)])].map((path) => file.tree.refresh(path)),
+      )
+    },
+    remove: async (path) => {
+      await server.ctx.sdk.api.file.remove({ path, recursive: true, location: location().ref })
+      const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""
+      await file.tree.refresh(parent)
+    },
     search: (query, options) =>
       options?.kind === "any" ? file.searchFilesAndDirectories(query, options) : file.searchFiles(query, options),
     selection: {

@@ -54,6 +54,34 @@ export const FileSystemHandler = HttpApiBuilder.group(Api, "server.fs", (handler
           }),
         ),
       )
+      .handle("fs.move", (ctx) =>
+        response(
+          Effect.gen(function* () {
+            const fs = yield* FileSystem.Service
+            return yield* fs
+              .move({ from: ctx.query.from, to: ctx.query.to })
+              .pipe(
+                Effect.mapError(
+                  (error) => new FileNotFoundError({ path: error.path, message: `File not found: ${error.path}` }),
+                ),
+              )
+          }),
+        ),
+      )
+      .handle("fs.remove", (ctx) =>
+        response(
+          Effect.gen(function* () {
+            const fs = yield* FileSystem.Service
+            return yield* fs
+              .remove({ path: ctx.query.path, recursive: ctx.query.recursive })
+              .pipe(
+                Effect.mapError(
+                  (error) => new FileNotFoundError({ path: error.path, message: `File not found: ${error.path}` }),
+                ),
+              )
+          }),
+        ),
+      )
   }),
 )
 

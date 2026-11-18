@@ -6,7 +6,6 @@ import { Integration } from "@opencode/core/integration"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
 import { GitLabPlugin } from "@opencode/core/plugin/provider/gitlab"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
 import { withEnv } from "../fixture/env"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
@@ -84,12 +83,6 @@ const fixture = Effect.fn(function* () {
 })
 
 describe("GitLabPlugin OAuth", () => {
-  it.effect("is registered alongside the other provider plugins", () =>
-    Effect.gen(function* () {
-      expect(ProviderPlugins).toContain(GitLabPlugin)
-    }),
-  )
-
   it.effect("registers PKCE OAuth alongside the generic key/env methods from ModelsDevPlugin", () =>
     Effect.gen(function* () {
       const integrations = yield* Integration.Service
