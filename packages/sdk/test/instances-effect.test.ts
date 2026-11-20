@@ -43,7 +43,7 @@ it.live(
         app: { name: "instance-test", version: "1.2.3" },
         events: { persist: true },
         config: { directory: directory.path, project: false, content: "{}" },
-        models: { fetch: false },
+        models: {},
         fs: { filewatcher: false },
         instances: {
           key: (session) => metadata(session.metadata).threadID,
@@ -162,7 +162,7 @@ it.live(
       const opencode = yield* OpenCode.create(
         {
           config: { directory: directory.path, project: false, content: "{}" },
-          models: { fetch: false },
+          models: {},
           fs: { filewatcher: false },
           workspaceProviders: { memory: driver },
           instances: {
@@ -249,7 +249,7 @@ it.live(
       const released: string[] = []
       const layer = OpenCode.layer({
         config: { directory: directory.path, project: false, content: "{}" },
-        models: { fetch: false },
+        models: {},
         fs: { filewatcher: false },
         instances: {
           key: (session) => metadata(session.metadata).threadID,

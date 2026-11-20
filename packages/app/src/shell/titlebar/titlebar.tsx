@@ -34,8 +34,7 @@ import { rootSession } from "@/shell/routes/session"
 import { TitlebarItem } from "@opencode/gui-extensions/sdk"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { TitlebarItems, useTitlebarItems } from "@/runtime/extension/titlebar-items"
-import devIcon from "../../../../desktop/icons/dev/64x64.png"
-import betaIcon from "../../../../desktop/icons/beta/64x64.png"
+import channelIcon from "../../assets/opencode.webp"
 
 const titlebarHeight = 36
 
@@ -659,18 +658,6 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                                 <Icon name="settings-gear" size="small" />
                                 {language.t("sidebar.settings")}
                               </button>
-                              <button
-                                type="button"
-                                data-action="mobile-tabs-help"
-                                class="flex h-7 shrink-0 items-center gap-2 rounded-[6px] px-2 text-[13px] leading-4 text-v2-text-text-faint hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02"
-                                onClick={() => {
-                                  setMobileTabs("open", false)
-                                  platform.openExternal("https://opencode.ai/desktop-feedback")
-                                }}
-                              >
-                                <Icon name="help" size="small" />
-                                {language.t("sidebar.help")}
-                              </button>
                             </div>
                           </div>
                         </div>
@@ -816,7 +803,7 @@ function ChannelIndicator(props: { horizontal?: boolean; sidebar?: boolean }) {
         aria-pressed={debug()?.pressed}
       >
         <img
-          src={channel === "beta" ? betaIcon : devIcon}
+          src={channelIcon}
           alt={debug() ? "" : label()}
           class="shrink-0 rounded-[4px] shadow-[var(--v2-elevation-raised)]"
           classList={{ "size-6": props.sidebar, "size-5": !props.sidebar }}

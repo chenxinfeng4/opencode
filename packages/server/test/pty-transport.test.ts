@@ -24,7 +24,7 @@ live(
         password: "secret",
         app: { version: "test-version" },
         database: { path: ":memory:" },
-        models: { fetch: false },
+        models: { },
         config: { directory, project: false, content: "{}" },
         fs: { filewatcher: false },
       })

@@ -9,7 +9,7 @@ const metadata = Schema.decodeUnknownSync(Schema.Struct({ account: Schema.String
 const hostOptions = (directory: string) => ({
   database: { path: join(directory, "opencode.sqlite") },
   config: { directory, project: false, content: "{}" },
-  models: { fetch: false },
+  models: {},
   fs: { filewatcher: false },
 })
 

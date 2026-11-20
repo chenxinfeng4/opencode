@@ -108,9 +108,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
             path: databasePath(global.data),
           },
           models: {
-            url: process.env.OPENCODE_MODELS_URL,
             file: process.env.OPENCODE_MODELS_PATH,
-            fetch: !truthy(process.env.OPENCODE_DISABLE_MODELS_FETCH),
           },
           config: {
             directory: process.env.OPENCODE_CONFIG_DIR,

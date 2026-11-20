@@ -6,13 +6,6 @@ export function createWebPlatform(version: string) {
     platform: "web",
     draftStore: createBrowserDraftStore(),
     version,
-    openExternal(value) {
-      if (!URL.canParse(value)) return
-      const url = new URL(value)
-
-      if (url.protocol !== "http:" && url.protocol !== "https:" && url.protocol !== "mailto:") return
-      window.open(url.href, "_blank", "noopener,noreferrer")
-    },
     restart: async () => window.location.reload(),
     async notify(title, description, onClick) {
       if (!("Notification" in window)) return

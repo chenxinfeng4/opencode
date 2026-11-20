@@ -15,7 +15,7 @@ it.live("releases completed embedded requests while the host stays open", () =>
       app: { version: "request-retention-test" },
       config: { directory: directory.path, project: false, content: "{}" },
       events: { persist: true },
-      models: { fetch: false },
+      models: {},
       fs: { filewatcher: false },
     })
 

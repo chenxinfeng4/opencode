@@ -25,7 +25,7 @@ for (const entrypoint of ["create", "layer"] as const) {
         app: { version: "transport-test" },
         config: { directory: directory.path, project: false, content: "{}" },
         events: { persist: true },
-        models: { fetch: false },
+        models: {},
         fs: { filewatcher: false },
       }
       const client = yield* (

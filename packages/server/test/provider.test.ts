@@ -18,7 +18,7 @@ it.live(
         createRoutes({
           password: "secret",
           database: { path: ":memory:" },
-          models: { fetch: false },
+          models: { },
           fs: { filewatcher: false },
           config: {
             directory: tmp.path,

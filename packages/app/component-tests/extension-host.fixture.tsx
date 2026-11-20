@@ -215,7 +215,6 @@ export function mountExtensions(input: {
   const platform: Platform = {
     platform: "desktop",
     windowID: "extension-host-fixture",
-    openExternal: () => undefined,
     openDirectoryPickerDialog: async () => null,
     restart: async () => undefined,
     notify: async () => undefined,
@@ -315,7 +314,6 @@ export function mountExtensions(input: {
 
 const web: Platform = {
   platform: "web",
-  openExternal: () => undefined,
   restart: async () => undefined,
   notify: async () => undefined,
 }

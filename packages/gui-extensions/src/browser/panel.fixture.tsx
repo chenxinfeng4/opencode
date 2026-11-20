@@ -81,8 +81,6 @@ type PaneFixtureState = {
   zoom: number
   /** The browser history store. */
   history: History
-  /** URLs the pane opened in the system browser. */
-  external: string[]
   /** Cookies the page's address can read. */
   cookies: number
 }
@@ -138,7 +136,6 @@ export function mountBrowserPane(input: PaneHost) {
       comments: [],
       zoom: 1,
       history: { visits: [] },
-      external: [],
       cookies: 3,
     })
 
@@ -368,7 +365,6 @@ export function mountBrowserPane(input: PaneHost) {
       },
       system: {
         copy: async () => undefined,
-        openExternal: (url: string) => setStore("external", (items) => [...items, url]),
       },
     }
 
@@ -480,7 +476,6 @@ export function mountBrowserPane(input: PaneHost) {
           <p>Captures: {store.captures}</p>
           <p>Zoom: {Math.round(store.zoom * 100)}</p>
           <p>Visits: {store.history.visits.map((visit) => visit.url).join(" ")}</p>
-          <p>External: {store.external.join(" ")}</p>
           <p>Session getter reads: {reads.directory}</p>
           <p>Picker: {store.picker[store.session] ? "on" : "off"}</p>
           <For each={tabs}>
@@ -833,7 +828,7 @@ export function mountBrowserRegion(input: RegionHost) {
       workspaces: () => workspaces,
       desktop: () => ({ zoom: () => 1 }),
       embeds: () => ({ View: () => null, capture: async () => undefined }),
-      system: () => ({ copy: async () => undefined, openExternal() {}, save: async () => false }),
+      system: () => ({ copy: async () => undefined, save: async () => false }),
       sessions: () => ({ list: () => refs, current: view }),
       screen: () => ({ current: () => screen }),
       layout,

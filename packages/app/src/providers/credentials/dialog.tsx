@@ -7,7 +7,6 @@ import { TextField } from "@opencode/ui/text-field"
 import { showToast } from "@/shell/notifications/toast"
 import { batch, For } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { ExternalLink } from "@/runtime/platform/external-link"
 import { useData } from "@/runtime/server/current"
 import { useLanguage } from "@/runtime/i18n/language"
 import { type FormState, headerRow, modelRow, validateCustomProvider } from "./form"
@@ -145,11 +144,7 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
 
       <form onSubmit={save} class="px-2.5 pb-6 flex flex-col gap-6">
         <p class="text-14-regular text-text-base">
-          {language.t("provider.custom.description.prefix")}
-          <ExternalLink href="https://opencode.ai/docs/providers/#custom-provider" tabIndex={-1}>
-            {language.t("provider.custom.description.link")}
-          </ExternalLink>
-          {language.t("provider.custom.description.suffix")}
+          {language.t("provider.custom.description")}
         </p>
 
         <div class="flex flex-col gap-4">

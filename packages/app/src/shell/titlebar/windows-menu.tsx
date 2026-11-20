@@ -43,6 +43,8 @@ export function WindowsAppMenu(props: {
     desktopMenuWithExtensions(
       (menu.items ?? [])
         .filter((entry) => desktopMenuVisible(entry, "windows"))
+        // Browser-based menu links are disabled in this build; only runnable entries stay.
+        .filter((entry) => entry.type === "separator" || entry.command || entry.action)
         .map((entry) => ({ key: desktopMenuKey(entry), entry })),
       menubar?.items().filter((item) => item.menu === menu.id) ?? [],
     )
@@ -79,13 +81,7 @@ export function WindowsAppMenu(props: {
       return
     }
 
-    if (entry.action) {
-      runAction(entry.action)
-
-      return
-    }
-
-    if (entry.href) props.platform.openExternal(entry.href)
+    if (entry.action) runAction(entry.action)
   }
 
   onMount(() => {

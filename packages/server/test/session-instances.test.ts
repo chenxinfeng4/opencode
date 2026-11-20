@@ -57,7 +57,7 @@ it.live(
         Database.node.replace(Database.node),
         Bus.node.replace(Bus.node),
         App.node.replace(App.node),
-        ModelsDev.node.replace(ModelsDev.configured({ fetch: false })),
+        ModelsDev.node.replace(ModelsDev.configured()),
         Watcher.node.replace(Watcher.configured({ enabled: false })),
         llmClient.replace(Layer.succeed(LLMClient.Service, llm)),
         SessionRunnerModel.node.replace(

@@ -87,7 +87,7 @@ const globalLayer = Global.layerWith({
 })
 const replacements = [
   Global.node.replace(globalLayer),
-  ModelsDev.node.replace(ModelsDev.configured({ fetch: false })),
+  ModelsDev.node.replace(ModelsDev.configured()),
   Watcher.node.replace(Watcher.configured({ enabled: false })),
 ]
 

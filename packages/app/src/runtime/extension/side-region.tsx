@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
+import { For, Show, createEffect, createMemo, onCleanup } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createEventListener } from "@solid-primitives/event-listener"
 import { DragDropProvider, PointerSensor } from "@dnd-kit/solid"
@@ -7,26 +7,17 @@ import { Accessibility, AutoScroller, Feedback, PointerActivationConstraints } f
 import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
 import { Tabs } from "@opencode/ui/tabs"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Icon } from "@opencode/ui/icon"
 import { ResizeHandle } from "@opencode/ui/resize-handle"
 import { Mark } from "@opencode/ui/logo"
-import { Keybind } from "@opencode/ui/keybind"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Menu } from "@opencode/ui/menu"
 import {
-  MenuItem,
   type MountedSession,
   type SessionScreen,
   type PanelSidebar,
-  type SessionPanelMenuItem,
 } from "@opencode/gui-extensions/sdk"
-import { useCommand } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useLayout } from "@/shell/state/layout"
 import { useSessionLayout } from "@/session/session-layout"
 import type { Sizing } from "@/session/helpers"
-import { useExtensionHost } from "./host"
 import { PanelTrigger } from "./panel-trigger"
 import { RegionContent, type Region } from "./panels"
 import { ExtensionSlot } from "./render"
@@ -47,7 +38,6 @@ export function SideRegion(props: {
 }) {
   const layout = useLayout()
   const language = useLanguage()
-  const host = useExtensionHost()
   const { tabs, view, params } = useSessionLayout()
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
@@ -67,13 +57,6 @@ export function SideRegion(props: {
   })
 
   const treeWidth = createMemo(() => (fileOpen() ? `${fileTreeWidth()}px` : "0px"))
-
-  const menu = createMemo(() =>
-    host
-      .list(MenuItem)
-      .flatMap((item) => (item.menu === "session.panel" ? [item] : []))
-      .toSorted((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-  )
 
   let root: HTMLElement | undefined
   let tabList: HTMLDivElement | undefined
@@ -196,14 +179,6 @@ export function SideRegion(props: {
                               </Show>
                             )}
                           </For>
-                          <div class="h-full shrink-0 sticky end-0 z-10 flex items-center justify-center bg-v2-background-bg-base">
-                            <Show
-                              when={menu().length > 1}
-                              fallback={<Show when={menu()[0]}>{(item) => <AddButton item={item()} />}</Show>}
-                            >
-                              <AddMenu items={menu()} />
-                            </Show>
-                          </div>
                         </Tabs.List>
                         <div
                           data-slot="session-side-panel-actions"
@@ -223,7 +198,8 @@ export function SideRegion(props: {
                             }}
                           />
                           <Show when={tabsVisible()}>
-                            <div class="size-7 shrink-0" aria-hidden />
+                            {/* The floating header row holds the side-dock toggle and the slot left of it. */}
+                            <div class="h-7 w-16 shrink-0" aria-hidden />
                           </Show>
                         </div>
                       </div>
@@ -304,81 +280,5 @@ export function SideRegion(props: {
         </Show>
       </aside>
     </Show>
-  )
-}
-
-function AddButton(props: { item: SessionPanelMenuItem }): JSX.Element {
-  const command = useCommand()
-  const keybind = createMemo(() => (props.item.keybind ? command.keybindParts(props.item.keybind) : []))
-
-  return (
-    <Tooltip
-      value={
-        <>
-          {props.item.title}
-          <Show when={keybind().length > 0}>
-            <Keybind keys={keybind()} variant="neutral" />
-          </Show>
-        </>
-      }
-      placement="bottom"
-      class="flex items-center"
-    >
-      <IconButton
-        icon={<Icon name="plus" />}
-        variant="ghost-muted"
-        size="large"
-        onClick={() => props.item.run()}
-        aria-label={props.item.title}
-      />
-    </Tooltip>
-  )
-}
-
-function AddMenu(props: { items: readonly SessionPanelMenuItem[] }): JSX.Element {
-  const language = useLanguage()
-  const command = useCommand()
-
-  return (
-    <Tooltip value={language.t("session.tab.add")} placement="bottom" class="flex items-center">
-      <Menu appearance="standard" modal={false} placement="bottom-start" gutter={4}>
-        <Menu.Trigger
-          as={IconButton}
-          icon={<Icon name="plus" />}
-          variant="ghost-muted"
-          size="large"
-          aria-label={language.t("session.tab.add")}
-          // The tablist redirects focus entering it to the selected
-          // tab, which counts as focus-outside and closes the menu.
-          onPointerDown={(event: PointerEvent) => event.preventDefault()}
-        />
-        <Menu.Portal>
-          <Menu.Content>
-            <For each={props.items}>
-              {(item) => {
-                const keybind = createMemo(() => (item.keybind ? command.keybindParts(item.keybind) : []))
-
-                return (
-                  <Menu.Item
-                    class="!gap-6"
-                    onSelect={() => item.run()}
-                    shortcut={
-                      <Show when={keybind().length > 0}>
-                        <Keybind keys={keybind()} variant="neutral" />
-                      </Show>
-                    }
-                  >
-                    <div class="flex items-center gap-2">
-                      <Show when={item.icon}>{(icon) => <Icon name={icon()} size="small" />}</Show>
-                      <span>{item.title}</span>
-                    </div>
-                  </Menu.Item>
-                )
-              }}
-            </For>
-          </Menu.Content>
-        </Menu.Portal>
-      </Menu>
-    </Tooltip>
   )
 }

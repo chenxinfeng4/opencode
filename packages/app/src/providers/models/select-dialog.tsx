@@ -15,8 +15,7 @@ import { Menu } from "@opencode/ui/menu"
 import { TextInput } from "@opencode/ui/text-input"
 import { ModelTooltip } from "./tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
-import { ExternalLink } from "@/runtime/platform/external-link"
-import { useData } from "@/runtime/server/current"
+
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { decode64 } from "@/runtime/persistence/base64"
 import { handleDocumentSearchKeydown } from "@/shell/commands/search-keydown"
@@ -253,7 +252,6 @@ export function ModelSelectorPopover(props: {
 }) {
   const dialog = useDialog()
   const mobile = createMediaQuery("(max-width: 767px)")
-  const data = useData()
   const location = useWorkspaceLocation()
 
   const controller = createModelSelectorController({
@@ -261,16 +259,6 @@ export function ModelSelectorPopover(props: {
     provider: () => props.provider,
     onSelect: () => props.onClose?.(),
   })
-
-  const chatgptPlan = () => {
-    if (!controller.current()?.startsWith("openai:")) return false
-
-    const connection = data.location.integration
-      .list(location().ref)
-      ?.find((integration) => integration.id === "openai")?.connections[0]
-
-    return connection?.type === "credential" && connection.method === "oauth"
-  }
 
   const manage = async () => {
     const { DialogManageModels } = await import("./manage")
@@ -292,7 +280,6 @@ export function ModelSelectorPopover(props: {
           models={controller.models}
           groups={controller.groups}
           current={controller.current()}
-          chatgptPlan={chatgptPlan()}
           select={controller.select}
           onManage={manage}
           onClose={() => props.onClose?.()}
@@ -304,7 +291,6 @@ export function ModelSelectorPopover(props: {
         model={props.model}
         provider={props.provider}
         onConnect={props.unpaid ? connect : undefined}
-        chatgptPlan={chatgptPlan()}
         onClose={() => props.onClose?.()}
         onManage={manage}
       />
@@ -316,7 +302,6 @@ function ModelSelectorDrawer(props: {
   trigger: ModelSelectorTrigger
   model?: ModelState
   provider?: string
-  chatgptPlan?: boolean
   onClose: () => void
   onManage: () => void
   onConnect?: () => void
@@ -414,19 +399,6 @@ function ModelSelectorDrawer(props: {
                     {language.t("command.provider.connect")}
                   </Button>
                 </Show>
-                <Show when={props.chatgptPlan}>
-                  <div class="flex min-h-10 items-center gap-2 border-t border-v2-border-border-muted px-3 py-2 text-[13px] leading-5 text-v2-text-text-base">
-                    <ProviderModelIcon provider={{ id: "openai", name: "OpenAI" }} class="shrink-0" />
-                    <span class="min-w-0 flex-1 truncate">{language.t("dialog.model.chatgptPlan")}</span>
-                    <ExternalLink
-                      href="https://chatgpt.com/settings/usage"
-                      class="flex shrink-0 items-center gap-1 rounded-sm text-v2-text-text-muted no-underline hover:text-v2-text-text-base focus-visible:outline focus-visible:outline-2"
-                    >
-                      {language.t("dialog.model.chatgptManageUsage")}
-                      <Icon name="arrow-up-right" size="small" />
-                    </ExternalLink>
-                  </div>
-                </Show>
               </div>
             </div>
           </MobilePanelDrawer>
@@ -488,7 +460,6 @@ export function ModelSelectorPopoverView(props: {
   models: (search: string) => ModelItem[]
   groups: (models: ModelItem[]) => { category: string; items: ModelItem[] }[]
   current: string | undefined
-  chatgptPlan?: boolean
   select: (item: ModelItem) => void
   onManage: () => void
   onClose: () => void
@@ -588,7 +559,6 @@ export function ModelSelectorPopoverView(props: {
         <Menu.Content
           ref={(element: HTMLDivElement) => (contentRef = element)}
           class="w-[284px] max-w-[calc(100vw-16px)] overflow-hidden rounded-md border-0 bg-v2-background-bg-layer-01 !p-0 shadow-[var(--v2-elevation-floating)] focus:outline-none"
-          classList={{ "!w-[320px]": props.chatgptPlan }}
           onPointerDownOutside={dismiss.preventTriggerRestore}
           onFocusOutside={dismiss.preventTriggerRestore}
           onCloseAutoFocus={dismiss.onCloseAutoFocus}
@@ -737,20 +707,6 @@ export function ModelSelectorPopoverView(props: {
               <span class="min-w-0 flex-1 truncate leading-5">{language.t("dialog.model.manage")}</span>
             </Menu.Item>
           </div>
-          <Show when={props.chatgptPlan}>
-            <div class="h-px bg-v2-border-border-muted" />
-            <div class="flex min-h-10 items-center gap-2 px-3 py-2 text-[13px] leading-5 text-v2-text-text-base">
-              <ProviderModelIcon provider={{ id: "openai", name: "OpenAI" }} class="shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{language.t("dialog.model.chatgptPlan")}</span>
-              <ExternalLink
-                href="https://chatgpt.com/settings/usage"
-                class="flex shrink-0 items-center gap-1 rounded-sm text-v2-text-text-muted no-underline hover:text-v2-text-text-base focus-visible:outline focus-visible:outline-2"
-              >
-                {language.t("dialog.model.chatgptManageUsage")}
-                <Icon name="arrow-up-right" size="small" />
-              </ExternalLink>
-            </div>
-          </Show>
         </Menu.Content>
       </Menu.Portal>
     </Menu>

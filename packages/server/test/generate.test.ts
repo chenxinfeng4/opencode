@@ -47,7 +47,7 @@ it.live("uses base configuration without depending on process.cwd()", () =>
         database: { path: ":memory:" },
         config: { directory: global },
         fs: { filewatcher: false },
-        models: { fetch: false },
+        models: { },
       },
       { overrides: [Generate.node.replace(generate)] },
     )

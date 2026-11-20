@@ -12,7 +12,7 @@ import { createKeyed, useExtension, type ServerRef } from "../sdk"
 import type { TerminalModel } from "./model"
 import type { LocalPTY } from "./state"
 import { SerializeAddon } from "./serialize"
-import { disposeIfDisposable, getHoveredLinkText, setOptionIfSupported } from "./runtime-adapters"
+import { disposeIfDisposable, setOptionIfSupported } from "./runtime-adapters"
 import { terminalKeyInput } from "./terminal-key-event"
 import { terminalWriter } from "./writer"
 
@@ -184,7 +184,6 @@ export const Terminal = (props: TerminalProps) => {
   const extension = useExtension()
   const appearance = extension.appearance
   const keybinds = extension.keybinds
-  const system = extension.system
   const desktop = extension.desktop
   const theme = useTheme()
   let container!: HTMLDivElement
@@ -415,13 +414,9 @@ export const Terminal = (props: TerminalProps) => {
 
     if (!t) return
 
-    const text = getHoveredLinkText(t)
-
-    if (!text) return
-
+    // Terminal link clicks no longer leave the app; the default shell selection still applies.
     event.preventDefault()
     event.stopImmediatePropagation()
-    system.openExternal(text)
   }
 
   onMount(() => {

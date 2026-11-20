@@ -60,7 +60,7 @@ for (const selection of ["explicit", "default"] as const) {
                 },
               }),
             },
-            models: { fetch: false },
+            models: {},
             fs: { filewatcher: false },
           },
           {
@@ -127,7 +127,7 @@ it.live("seeds host plugins from CreateOptions and waits for delayed model plugi
             project: false,
             content: JSON.stringify({ model: "seeded/fictional-chat" }),
           },
-          models: { fetch: false },
+          models: {},
           fs: { filewatcher: false },
           plugins: [plugin],
         },
@@ -157,7 +157,7 @@ it.live("OpenCodeWorkerd seeds plugins before cold model resolution", () =>
     Effect.gen(function* () {
       const opencode = yield* OpenCodeWorkerd.create({
         storage: makeDurableObjectStorage(),
-        models: { fetch: false },
+        models: {},
         config: { model: "workerd-seeded/fictional-chat" },
         plugins: [
           Plugin.define({

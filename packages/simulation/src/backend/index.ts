@@ -25,18 +25,17 @@ export const simulationReplacements: (app: {
   readonly version: string
 }) => Effect.Effect<LayerNode.Replacements, Error, FileSystem.FileSystem> = Effect.fn("Simulation.replacements")(
   function* (app: { readonly version: string }) {
-    // ModelsDev dies when its catalog fetch fails, so simulation answers it with
-    // an empty catalog; providers come from seeded config instead.
-    const models = SimulationNetwork.json("GET", "https://models.opencode.ai/api.json", {})
+    // The catalog never touches the network, so simulation only needs to route
+    // provider traffic; providers come from seeded config instead.
     const drive = yield* Config.String("OPENCODE_DRIVE").pipe(Config.withDefault(undefined))
-    if (!drive) return [httpClient.replace(SimulationNetwork.layer([models]))] satisfies LayerNode.Replacements
+    if (!drive) return [httpClient.replace(SimulationNetwork.layer([]))] satisfies LayerNode.Replacements
 
     const manifest = yield* DriveManifest.resolve()
     const networkLayer = Layer.effect(
       HttpClient.HttpClient,
       Effect.gen(function* () {
         const provider = yield* SimulatedProvider.Service
-        const network = yield* SimulationNetwork.make([SimulationOpenAI.route(provider), models])
+        const network = yield* SimulationNetwork.make([SimulationOpenAI.route(provider)])
         return network.client
       }),
     ).pipe(

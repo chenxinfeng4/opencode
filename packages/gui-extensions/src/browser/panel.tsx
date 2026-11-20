@@ -15,7 +15,7 @@ import { createMemo, For, on, onCleanup, Show, type Accessor, type JSX } from "s
 import { createStore } from "solid-js/store"
 import type { Browser } from "@opencode/plugin-browser/rpc"
 import { createKeyed, useExtension, usePanel, type PanelTab, type MountedSession, type SessionScreen } from "../sdk"
-import { addressParts, connection, loopback, resolveAddress, searches } from "./address"
+import { addressParts, connection, resolveAddress, searches } from "./address"
 import { commentNote, pageNote } from "./comment"
 import { bare, completes, highlight, suggest, type Visit } from "./history"
 import type { Model } from "./model"
@@ -190,19 +190,6 @@ export default function SessionBrowserPane(props: {
   const listed = () => suggestions().length > 0 && !store.dismissed
   const chosen = () => (listed() ? suggestions()[store.active] : undefined)
   const recent = () => props.model.visits().slice(0, RECENT)
-
-  // A loopback address opens on the machine that runs the server; the system browser here reaches it only when the
-  // server runs here too.
-  const reachable = () => {
-    const url = address()
-
-    if (!URL.canParse(url)) return false
-    const parsed = new URL(url)
-
-    if (parsed.protocol === "file:") return props.session.server.local
-
-    return /^https?:$/.test(parsed.protocol) && (props.session.server.local || !loopback(parsed.hostname))
-  }
 
   const setPicking = (current: NonNullable<PaneState["picking"]>, enabled: boolean) => {
     props.model.inspect({ key: current.sessionKey }, current.tabID, enabled)
@@ -742,18 +729,6 @@ export default function SessionBrowserPane(props: {
                     icon={<Icon name="outline-globe-plus" />}
                   />
                 </Tooltip>
-                <Tooltip placement="top" value={extension.t(reachable() ? "external.open" : "external.unavailable")}>
-                  <IconButton
-                    type="button"
-                    variant="ghost-muted"
-                    size="small"
-                    aria-label={extension.t("external.open")}
-                    disabled={!reachable()}
-                    onPointerDown={(event) => event.preventDefault()}
-                    onClick={() => system.openExternal(address())}
-                    icon={<Icon name="outline-arrow-up-right" />}
-                  />
-                </Tooltip>
               </div>
             </Show>
           </form>
@@ -844,9 +819,6 @@ export default function SessionBrowserPane(props: {
                 <Menu.Separator />
                 <Menu.Item disabled={!address()} onSelect={copyLink}>
                   {extension.t("link.copy")}
-                </Menu.Item>
-                <Menu.Item disabled={!reachable()} onSelect={() => system.openExternal(address())}>
-                  {extension.t("external.open")}
                 </Menu.Item>
                 <Menu.Separator />
                 <Menu.Item disabled={props.model.visits().length === 0} onSelect={() => props.model.clearHistory()}>

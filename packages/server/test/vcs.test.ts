@@ -113,7 +113,7 @@ it.live("returns 501 when a registered VCS provider has no initializer", () =>
         database: { path: ":memory:" },
         config: { directory: tmp.path },
         fs: { filewatcher: false },
-        models: { fetch: false },
+        models: {},
       },
       {
         overrides: [
@@ -283,7 +283,7 @@ it.live("maps a failing base provider to HTTP 503 instead of null metadata", () 
         database: { path: ":memory:" },
         config: { directory: tmp.path },
         fs: { filewatcher: false },
-        models: { fetch: false },
+        models: {},
       },
       {
         overrides: [

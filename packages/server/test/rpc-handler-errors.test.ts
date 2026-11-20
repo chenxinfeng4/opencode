@@ -31,7 +31,7 @@ for (const method of ["handler", "schema"] as const) {
       const context = yield* Layer.build(
         createEmbeddedRoutes({
           database: { path: ":memory:" },
-          models: { fetch: false },
+          models: { },
           config: { directory: directory.path, project: false, content: "{}" },
           fs: { filewatcher: false },
         }).pipe(Layer.provide(HttpServer.layerServices)),

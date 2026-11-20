@@ -7,7 +7,7 @@ import { Commands } from "../commands"
 import { Runtime } from "../../framework/runtime"
 import { ServerConnection } from "../../services/server-connection"
 import { RetainedImage } from "../../services/retained-image"
-import { Updater } from "../../services/updater"
+import { InstallMethod } from "../../services/install-method"
 import { handlePromptErrors, prompt, requireInteractive } from "../../ui/prompt"
 import { errorMessage } from "../../util/error"
 
@@ -17,9 +17,9 @@ export default Runtime.handler(
     intro("Uninstall OpenCode")
     const fs = yield* FileSystem.FileSystem
     const global = yield* Global.Service
-    const updater = yield* Updater.Service
-    const method = yield* updater.method()
-    const removal = method ? updater.removal(method) : undefined
+    const installMethod = yield* InstallMethod.Service
+    const method = yield* installMethod.method()
+    const removal = method ? installMethod.removal(method) : undefined
     // Data, config, and state hold sessions, credentials, settings, and prompt history; uninstall only removes the cache.
     // All channels share the cache. Stop background services before deleting it.
     // Read registrations directly: ServiceConfig.options() can migrate files even during a dry run.

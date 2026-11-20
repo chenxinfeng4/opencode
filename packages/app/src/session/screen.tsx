@@ -20,12 +20,12 @@ import type { SessionModel } from "@/session/model"
 import { SESSION_PANEL_WIDTH_MIN } from "@/session/session-panel-width"
 import { SessionPanelFrame } from "@/session/session-frame"
 import { useExtensionHost } from "@/runtime/extension/host"
-import { ExtensionLinks } from "@/runtime/extension/render"
+import { ExtensionLinks, ExtensionSlot } from "@/runtime/extension/render"
 import { createPanelSidebar, createRegion, DockRegion, MobilePanel } from "@/runtime/extension/panels"
 import { createMobileViews, MobileViewTabs } from "@/runtime/extension/mobile"
 import { useExtensionAttachment } from "@/runtime/extension/host-apis"
 import { createMountedSession } from "@/runtime/extension/mounted-session"
-import { useUsageExceededDialogs } from "./usage-exceeded-dialogs"
+
 import { SessionErrorFallback } from "./route-error"
 import { createSessionScreenLayout } from "./screen-layout"
 import { SideRegion } from "@/runtime/extension/side-region"
@@ -222,7 +222,6 @@ function SessionScreenContent(props: {
   })
 
   props.bindBackground(composer.requests.background.tasks)
-  useUsageExceededDialogs()
 
   const sessionErrorFallback = (cause: unknown, reset: () => void) => {
     createEffect(on(session.identity.sessionKey, reset, { defer: true }))
@@ -371,12 +370,23 @@ function SessionScreenContent(props: {
           {/* Keep the control outside panel animations; a side dock's 52px header includes a 1px divider. */}
           <Show when={isDesktop() && messagesReady() && session.identity.params.id}>
             <div
-              class="absolute end-3 top-0 z-30 flex items-center"
+              class="absolute end-3 top-0 z-30 flex items-center gap-2"
               classList={{ "h-[51px]": sideDockVisible(), "h-12": !sideDockVisible() }}
               data-slot="session-review-toggle"
               onPointerDown={hideTimelineScrollbar}
               onClick={hideTimelineScrollbar}
             >
+              <ExtensionSlot
+                at="session.header.end"
+                input={{
+                  get session() {
+                    return props.view()
+                  },
+                  get screen() {
+                    return props.screen
+                  },
+                }}
+              />
               <SessionReviewToggle />
             </div>
           </Show>

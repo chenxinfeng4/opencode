@@ -20,7 +20,7 @@ it.live("a cancelled borrower cannot strand a later failed instance construction
     const host = yield* Effect.acquireRelease(
       EmbeddedHost.create({
         config: { directory: directory.path, project: false, content: "{}" },
-        models: { fetch: false },
+        models: {},
         fs: { filewatcher: false },
         instances: {
           key: () => "shared",

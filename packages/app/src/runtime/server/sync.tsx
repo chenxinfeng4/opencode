@@ -18,7 +18,6 @@ import { persisted } from "@/runtime/persistence/storage"
 import type { ServerApi } from "@/runtime/server/api"
 import { toggleMcp } from "./global-sync/mcp"
 import { createConnectionSync, reconnectOrder } from "./server-sync/connection"
-import { usePlatform } from "@/runtime/platform/platform"
 import type { Data } from "@opencode/client/solid"
 import { createWorktreeInventory, withWorktreeInventory, worktreeInventoryViewKey } from "@/workspaces/inventory"
 
@@ -49,7 +48,6 @@ export type QueryOptionsApi = ReturnType<typeof makeQueryOptionsApi>
 
 export function createServerSyncContextInner(serverSDK: ServerSDK, data: Data) {
   const language = useLanguage()
-  const platform = usePlatform()
   const owner = getOwner()
 
   if (!owner) throw new Error("ServerSync must be created within owner")
@@ -324,29 +322,8 @@ export function createServerSyncContextInner(serverSDK: ServerSDK, data: Data) {
             await serverSDK.api.mcp.disconnect({ server: name, location: { directory: key } })
           },
           authenticate: async () => {
-            const server = (await serverSDK.api.mcp.list({ location: { directory: key } })).data.find(
-              (item) => item.name === name,
-            )
-
-            if (!server?.integrationID) throw new Error(`MCP server ${name} has no authentication integration`)
-
-            const integration = await serverSDK.api.integration.get({
-              integrationID: server.integrationID,
-              location: { directory: key },
-            })
-
-            const method = integration.data?.methods.find((item) => item.type === "oauth" && !item.form?.length)
-
-            if (!method || method.type !== "oauth")
-              throw new Error(`MCP server ${name} requires an interactive authentication form`)
-
-            const attempt = await serverSDK.api.integration.oauth.connect({
-              integrationID: server.integrationID,
-              methodID: method.id,
-              location: { directory: key },
-            })
-
-            platform.openExternal(attempt.data.url)
+            // Browser-based OAuth is disabled in this build; there is nothing to authenticate with.
+            throw new Error(`MCP server ${name} requires an interactive authentication form`)
           },
           refresh: async () => {
             data.location.mcp.server.invalidate({ directory: key })

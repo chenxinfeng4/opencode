@@ -1,9 +1,8 @@
 import { createMemo, lazy, onCleanup, Show, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createKeyed, onIdle, Panel, Slot, Style, useDrawer, usePanel, type Setup } from "../sdk"
+import { createKeyed, onIdle, Panel, Style, useDrawer, usePanel, type Setup } from "../sdk"
 import type Details from "./index"
 import type { Disclosure } from "./panel"
-import { DetailsHeader } from "./popover"
 
 const setup: Setup<typeof Details> = (ctx) => {
   const sessions = ctx.sessions
@@ -33,20 +32,6 @@ const setup: Setup<typeof Details> = (ctx) => {
 
   // Compile the panel while the app idles, so the first open renders at once.
   onCleanup(onIdle(() => void DetailsPanel.preload()))
-
-  ctx.add(Slot, {
-    at: "session.header",
-    order: 20,
-    render: (input) => (
-      <DetailsHeader
-        session={input.session}
-        screen={input.screen}
-        active={input.active}
-        panel={DetailsPanel}
-        disclosure={disclosure}
-      />
-    ),
-  })
 
   // The narrow-screen details drawer, offered for sessions of a project, subagents included.
   const panel: Panel = {

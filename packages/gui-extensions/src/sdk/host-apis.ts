@@ -921,13 +921,6 @@ export interface System {
     /** The file's content. */
     readonly content: string
   }): Promise<boolean>
-  /**
-   * Opens a URL in the system browser; desktop opens file:// URLs with the default app. For links inside the app,
-   * use `Links.open`.
-   *
-   * @param url - The URL to open.
-   */
-  openExternal(url: string): void
 }
 
 /** Desktop-only abilities; `ctx.desktop` is undefined on the web. */

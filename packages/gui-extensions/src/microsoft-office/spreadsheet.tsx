@@ -867,7 +867,8 @@ function SpreadsheetGrid(props: {
 
     const url = sheetLinkUrl(link)
 
-    if (url) return ctx.system.openExternal(url)
+    // External browser links are disabled in this build; only in-workbook locations navigate.
+    if (url) return
 
     const target = link.location ? parseHyperlinkLocation(link.location, name()) : null
 

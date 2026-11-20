@@ -229,11 +229,6 @@ export function createHostApis() {
 
         return true
       },
-      openExternal(url) {
-        if (platform.openLocalFile && URL.canParse(url) && new URL(url).protocol === "file:")
-          return platform.openLocalFile(url)
-        platform.openExternal(url)
-      },
     }),
     desktop: () =>
       platform.platform === "desktop"

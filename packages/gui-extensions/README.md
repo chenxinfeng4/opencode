@@ -222,7 +222,7 @@ SDK icon fields use `IconName` from `@opencode/ui/icons/catalog`, a dependency-f
 | [`Server`](src/sdk/registries.ts)       | window  | A source of servers, such as SSH hosts                                                      |
 | [`LinkHandler`](src/sdk/registries.ts)  | window  | Opens local links, such as file paths in messages, and says whether their target exists     |
 | [`TitlebarItem`](src/sdk/registries.ts) | window  | A titlebar pill, or the dev channel badge as a toggle                                       |
-| [`Slot`](src/sdk/registries.ts)         | window  | Content for `window.bottom`, `session.header`, `session.panel.end`, `session.panel.sidebar` |
+| [`Slot`](src/sdk/registries.ts)         | window  | Content for `window.bottom`, `session.header`, `session.header.end`, `session.panel.end`, `session.panel.sidebar` |
 | [`Style`](src/sdk/registries.ts)        | window  | CSS imported with `?inline`                                                                 |
 | [`MenubarItem`](src/sdk/main.ts)        | main    | An item of the native app menu                                                              |
 
@@ -234,7 +234,7 @@ SDK icon fields use `IconName` from `@opencode/ui/icons/catalog`, a dependency-f
 | `ctx.sessions`               | `Sessions`                                                     | Sessions of open tabs, and the mounted `MountedSession`           |
 | `ctx.screen`                 | `Screen`                                                       | The session screen's files, comments and composer                 |
 | `ctx.storage`                | `Storage`                                                      | Stores for keys known only at runtime, and window memory          |
-| `ctx.system`                 | `System`                                                       | Clipboard, saving files, `openExternal`                           |
+| `ctx.system`                 | `System`                                                       | Clipboard and saving files                                        |
 | `ctx.desktop`                | `Desktop \| undefined`                                         | Desktop-only: reveal, launch, installed, zoom, forceFocus         |
 | `ctx.dialogs`                | `Dialogs`                                                      | `open` returns a handle to close; a dialog closes with its owner  |
 | `ctx.links`                  | `Links`                                                        | Opens a local link, or checks it exists, with the best handler    |

@@ -3,7 +3,6 @@ import type { Accessor } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
-import { usePlatform } from "@/runtime/platform/platform"
 import { showToast } from "@/shell/notifications/toast"
 
 export type McpControls = {
@@ -16,7 +15,6 @@ export type McpControls = {
 export function useMcpToggle(directory?: Accessor<string | undefined>, onSuccess?: () => unknown) {
   const data = useData()
   const serverSDK = useServerSDK()
-  const platform = usePlatform()
   const language = useLanguage()
 
   const location = () => {
@@ -42,29 +40,10 @@ export function useMcpToggle(directory?: Accessor<string | undefined>, onSuccess
         await serverSDK.api.mcp.connect({ server: name, location: ref })
       }
 
-      data.location.mcp.server.invalidate(ref)
-      await data.location.mcp.server.sync(ref)
-      const current = data.location.mcp.server.list(ref)?.find((item) => item.name === name)
-
-      if (enabled && current?.status.status === "needs_auth" && current.integrationID) {
-        const integration = await serverSDK.api.integration.get({ integrationID: current.integrationID, location: ref })
-        const method = integration.data?.methods.find((item) => item.type === "oauth" && !item.form?.length)
-
-        if (!method || method.type !== "oauth") throw new Error(language.t("mcp.auth.interactiveForm", { name }))
-
-        const attempt = await serverSDK.api.integration.oauth.connect({
-          integrationID: current.integrationID,
-          methodID: method.id,
-          location: ref,
-        })
-
-        platform.openExternal(attempt.data.url)
-      }
-
       data.location.mcp.resource.invalidate(ref)
       await Promise.all([data.location.mcp.resource.sync(ref), onSuccess?.()])
       // A successful HTTP response can still leave the MCP connection in a failed state.
-      const status = current?.status
+      const status = data.location.mcp.server.list(ref)?.find((item) => item.name === name)?.status
 
       if (status?.status === "failed") throw new Error(`${name}: ${status.error}`)
     },

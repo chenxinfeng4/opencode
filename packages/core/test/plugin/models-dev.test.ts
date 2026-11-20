@@ -2,7 +2,6 @@ import path from "path"
 import { describe, expect } from "bun:test"
 import { Money } from "@opencode/schema/money"
 import { Context, Effect, Exit, Layer, Scope } from "effect"
-import { TestClock } from "effect/testing"
 import { Integration } from "@opencode/core/integration"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"
@@ -33,7 +32,7 @@ const it = testEffect(layer)
 const real = testEffect(PluginTestLayer)
 const isolated = testEffect(Layer.empty)
 const models = (file: string) =>
-  AppNodeBuilder.build(ModelsDev.node, [ModelsDev.node.replace(ModelsDev.configured({ file, fetch: false }))])
+  AppNodeBuilder.build(ModelsDev.node, [ModelsDev.node.replace(ModelsDev.configured({ file }))])
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Expected value")
@@ -57,7 +56,6 @@ const owner = Effect.gen(function* () {
   return {
     context,
     host,
-    bus: Context.get(context, Bus.Service),
     providers: Context.get(context, Provider.Service),
     models: Context.get(context, Model.Service),
     integration: Context.get(context, Integration.Service),
@@ -128,7 +126,7 @@ describe("ModelsDevPlugin", () => {
     Effect.gen(function* () {
       const { providerID, modelID, snapshot } = richSnapshot()
       const pristine = JSON.stringify(snapshot)
-      const source = ModelsDev.Service.of({ get: () => Effect.succeed(snapshot), refresh: () => Effect.void })
+      const source = ModelsDev.Service.of({ get: () => Effect.succeed(snapshot) })
       const first = yield* owner
       const second = yield* owner
       for (const each of [first, second]) {
@@ -257,70 +255,6 @@ describe("ModelsDevPlugin", () => {
     }),
   )
 
-  isolated.effect("replaces its snapshot reference on refresh without touching the sibling Location", () =>
-    Effect.gen(function* () {
-      const initial = richSnapshot("Acme")
-      const refreshed = richSnapshot("Acme Refreshed")
-      const pristine = JSON.stringify(initial.snapshot)
-      const current = { snapshot: initial.snapshot }
-      const source = ModelsDev.Service.of({
-        get: () => Effect.sync(() => current.snapshot),
-        refresh: () => Effect.void,
-      })
-      const first = yield* owner
-      const second = yield* owner
-      for (const each of [first, second])
-        yield* ModelsDevPlugin.effect(each.host).pipe(
-          Effect.provideService(ModelsDev.Service, source),
-          Effect.provideContext(each.context),
-        )
-      expect(required(yield* first.providers.get(initial.providerID)).name).toBe("Acme")
-
-      current.snapshot = refreshed.snapshot
-      yield* first.bus.publish(ModelsDev.Event.Refreshed, {})
-      // Integration and provider reloads are debounced sequentially.
-      yield* TestClock.adjust("500 millis")
-      yield* TestClock.adjust("500 millis")
-      yield* TestClock.adjust("500 millis")
-
-      expect(required(yield* first.providers.get(initial.providerID)).name).toBe("Acme Refreshed")
-      expect(required(yield* second.providers.get(initial.providerID)).name).toBe("Acme")
-      expect(JSON.stringify(initial.snapshot)).toBe(pristine)
-      expect(JSON.stringify(refreshed.snapshot)).toBe(JSON.stringify(richSnapshot("Acme Refreshed").snapshot))
-    }),
-  )
-
-  isolated.effect("adopts a refresh that completes between its initial read and its subscription", () =>
-    Effect.gen(function* () {
-      const bundled = richSnapshot("Acme Bundled")
-      const fresh = richSnapshot("Acme Fresh")
-      const current = { snapshot: bundled.snapshot }
-      const location = yield* owner
-      // Cold cache: the first read serves the bundled snapshot, and the boot-time
-      // ModelsDev.refresh() lands right after it, before the plugin subscribes.
-      const source = ModelsDev.Service.of({
-        get: () =>
-          Effect.gen(function* () {
-            const data = current.snapshot
-            if (data !== bundled.snapshot) return data
-            current.snapshot = fresh.snapshot
-            yield* location.bus.publish(ModelsDev.Event.Refreshed, {})
-            return data
-          }),
-        refresh: () => Effect.void,
-      })
-      yield* ModelsDevPlugin.effect(location.host).pipe(
-        Effect.provideService(ModelsDev.Service, source),
-        Effect.provideContext(location.context),
-      )
-      yield* TestClock.adjust("500 millis")
-      yield* TestClock.adjust("500 millis")
-      yield* TestClock.adjust("500 millis")
-
-      expect(required(yield* location.providers.get(bundled.providerID)).name).toBe("Acme Fresh")
-    }),
-  )
-
   real.effect("keeps the retained definition unchanged across model replay", () =>
     Effect.gen(function* () {
       const providers = yield* Provider.Service
@@ -356,7 +290,6 @@ describe("ModelsDevPlugin", () => {
               ],
             },
           ] satisfies readonly ModelsDev.Snapshot[]),
-        refresh: () => Effect.void,
       })
       const pluginHost = yield* PluginHost.make(plugins)
       yield* ModelsDevPlugin.effect(pluginHost).pipe(Effect.provideService(ModelsDev.Service, modelsDev))
@@ -426,7 +359,7 @@ describe("ModelsDevPlugin", () => {
       ).pipe(
         Effect.provideService(
           ModelsDev.Service,
-          ModelsDev.Service.of({ get: () => Effect.succeed(snapshot), refresh: () => Effect.void }),
+          ModelsDev.Service.of({ get: () => Effect.succeed(snapshot) }),
         ),
       )
 
@@ -566,7 +499,6 @@ describe("ModelsDevPlugin", () => {
               ],
             },
           ] satisfies readonly ModelsDev.Snapshot[]),
-        refresh: () => Effect.void,
       })
 
       yield* ModelsDevPlugin.effect(
@@ -693,7 +625,6 @@ describe("ModelsDevPlugin", () => {
           ModelsDev.Service,
           ModelsDev.Service.of({
             get: () => Effect.succeed(snapshots),
-            refresh: () => Effect.void,
           }),
         ),
       )
@@ -785,7 +716,6 @@ describe("ModelsDevPlugin", () => {
                       ],
                     },
                   ] satisfies readonly ModelsDev.Snapshot[]),
-                refresh: () => Effect.void,
               }),
             ),
           )
@@ -843,7 +773,7 @@ describe("ModelsDevPlugin", () => {
       ).pipe(
         Effect.provideService(
           ModelsDev.Service,
-          ModelsDev.Service.of({ get: () => Effect.succeed([snapshot]), refresh: () => Effect.void }),
+          ModelsDev.Service.of({ get: () => Effect.succeed([snapshot]) }),
         ),
       )
 
@@ -892,7 +822,6 @@ describe("ModelsDevPlugin", () => {
           ModelsDev.Service,
           ModelsDev.Service.of({
             get: () => Effect.succeed(snapshots),
-            refresh: () => Effect.void,
           }),
         ),
       )
@@ -950,7 +879,6 @@ describe("ModelsDevPlugin", () => {
                   models: [],
                 },
               ] satisfies readonly ModelsDev.Snapshot[]),
-            refresh: () => Effect.void,
           }),
         ),
       )

@@ -39,7 +39,7 @@ test("embedded worktree APIs use project IDs and SDK-registered strategies", asy
   await using opencode = await OpenCode.create({
     plugins: [plugin],
     config: { directory: directory.path, project: false },
-    models: { fetch: false },
+    models: {},
     fs: { filewatcher: false },
   })
   const session = await opencode.sessions.create({ location: { directory: directory.path } })

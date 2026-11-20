@@ -1,18 +1,11 @@
-import { Cause, Context, Duration, Effect, Layer, Option, Schedule, Schema, Semaphore } from "effect"
-import { HttpClient, HttpClientRequest } from "effect/http"
-import { ModelsDev } from "@opencode/schema/models-dev"
+import { Context, Effect, Layer, Schema } from "effect"
 import { Money } from "@opencode/schema/money"
-import { App } from "./app.js"
-import { Hash } from "@opencode/util/hash"
 import { FSUtil } from "@opencode/util/fs-util"
-import { Bus } from "./bus.js"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
-import { httpClient } from "@opencode/util/effect/app-node-platform"
 import { Model } from "./model.js"
 import { AISDKNative } from "./aisdk-native.js"
 import { Provider } from "./provider.js"
 import { Variant } from "./variant.js"
-import { KV } from "./kv.js"
 import snapshotText from "./models-dev/snapshot.txt" with { type: "text" }
 
 export const CatalogModelStatus = Schema.Literals(["alpha", "beta", "deprecated"])
@@ -83,8 +76,8 @@ export type Snapshot = {
 }
 
 /**
- * Domestic (China) provider allowlist applied to the bundled snapshot and every fetched
- * models.dev catalog. Providers outside this set are dropped before they reach the provider
+ * Domestic (China) provider allowlist applied to the bundled models.dev snapshot.
+ * Providers outside this set are dropped before they reach the provider
  * registry; user-configured providers bypass this filter entirely.
  * Extend this set to re-admit a provider.
  */
@@ -326,17 +319,12 @@ function modelInfo(
   }
 }
 
-export { Event } from "@opencode/schema/models-dev"
-
 export interface Interface {
   readonly get: () => Effect.Effect<readonly Snapshot[]>
-  readonly refresh: (force?: boolean) => Effect.Effect<void>
 }
 
 export const Options = Schema.Struct({
-  url: Schema.optional(Schema.String),
   file: Schema.optional(Schema.String),
-  fetch: Schema.optional(Schema.Boolean),
   snapshot: Schema.optional(Schema.Boolean),
 })
 export type Options = typeof Options.Type
@@ -346,21 +334,14 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Mo
 const CatalogJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown))
 const decodeCatalog = (text: string) =>
   Schema.decodeUnknownEffect(CatalogJson)(text).pipe(Effect.map((catalog) => catalog as Record<string, SourceProvider>))
-const Cache = Schema.Struct({
-  updatedAt: Schema.Number,
-  // Digest of the raw body, persisted so refresh() can skip republishing a
-  // byte-identical catalog. Optional for entries written before it existed.
-  digest: Schema.optional(Schema.String),
-  body: CatalogJson,
-})
-const defaultSource = "https://models.opencode.ai"
 
 // Bundled snapshot of https://models.opencode.ai/api.json, committed at
 // packages/core/src/models-dev/snapshot.txt and refreshed via
-// `bun run script/update-models-snapshot.ts`. Decoded and normalized once per
-// isolate: the snapshot is a multi-MB module-level constant and one isolate can
-// host many runtimes (Cloudflare colocates Durable Object instances), so
-// per-runtime decoding would multiply the cost.
+// `bun run script/update-models-snapshot.ts`. It is the only catalog source:
+// this fork never contacts the network for the catalog. Decoded and normalized
+// once per isolate: the snapshot is a multi-MB module-level constant and one
+// isolate can host many runtimes (Cloudflare colocates Durable Object
+// instances), so per-runtime decoding would multiply the cost.
 let bundledCache: readonly Snapshot[] | undefined
 const bundledSnapshot = Effect.suspend(() =>
   bundledCache
@@ -373,60 +354,11 @@ const bundledSnapshot = Effect.suspend(() =>
       ),
 )
 
-function cacheKey(source: string) {
-  if (source === defaultSource) return "models-dev:catalog"
-  return `models-dev:catalog:${Hash.fast(source)}`
-}
-
-export function bodyDigest(text: string) {
-  return Hash.sha256(text)
-}
-
 export const layer = (options?: Options) =>
   Layer.effect(
     Service,
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
-      const bus = yield* Bus.Service
-      const app = yield* App.Metadata
-      const kv = yield* KV.Service
-      const http = HttpClient.filterStatusOk(
-        (yield* HttpClient.HttpClient).pipe(
-          HttpClient.retryTransient({
-            retryOn: "errors-and-responses",
-            times: 2,
-            schedule: Schedule.exponential(200).pipe(Schedule.jittered),
-          }),
-        ),
-      )
-
-      const source = options?.url || defaultSource
-      const fetch = options?.fetch ?? true
-      const userAgent = App.useragent(app)
-      const key = cacheKey(source)
-      const ttl = Duration.minutes(5)
-      const lock = Semaphore.makeUnsafe(1)
-
-      const loadFromCache = Effect.fnUntraced(function* () {
-        const value = yield* kv.get(key)
-        const cached = Schema.decodeUnknownOption(Cache)(value)
-        if (Option.isSome(cached))
-          return {
-            catalog: cached.value.body as Record<string, SourceProvider>,
-            updatedAt: cached.value.updatedAt,
-            digest: cached.value.digest,
-          }
-        if (value !== undefined) yield* kv.remove(key)
-      })
-
-      const fetchApi = Effect.fn("ModelsDev.fetchApi")(function* () {
-        return yield* HttpClientRequest.get(`${source}/api.json`).pipe(
-          HttpClientRequest.setHeader("User-Agent", userAgent),
-          http.execute,
-          Effect.flatMap((res) => res.text),
-          Effect.timeout("10 seconds"),
-        )
-      })
 
       const loadFromFile = options?.file
         ? fs.readJson(options.file).pipe(
@@ -435,82 +367,22 @@ export const layer = (options?: Options) =>
           )
         : Effect.undefined
 
-      // The bundled snapshot is the boot-time floor for the catalog; the
-      // periodic fetch below still refreshes on top.
+      // The bundled snapshot is the catalog floor; `snapshot: false` serves an
+      // empty catalog instead (tests and embedded runtimes opt out).
       const loadSnapshot = options?.snapshot === false ? Effect.undefined : bundledSnapshot
 
-      // Best-effort: a cache-write failure must never kill catalog
-      // population. The payload has outgrown some KV backends' per-value
-      // limits (Durable Object SQLite caps values at 2 MB and api.json
-      // passed it in Aug 2026); a boot without a cache hit just refetches.
-      const writeCache = Effect.fn("ModelsDev.writeCache")(function* (text: string, digest = bodyDigest(text)) {
-        yield* kv.set(key, { updatedAt: Date.now(), digest, body: text }).pipe(
-          Effect.catchCauseIf(
-            (cause) => !Cause.hasInterruptsOnly(cause),
-            (cause) => Effect.logWarning("Failed to cache models.dev catalog", { cause }),
-          ),
-        )
-      })
-
-      const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
-        const text = yield* fetchApi()
-        const catalog = yield* decodeCatalog(text)
-        yield* writeCache(text)
-        return catalog
-      })
-
       const populate = Effect.gen(function* () {
+        // An explicit catalog file is a user override rather than opencode's
+        // stock list, so it skips the domestic filter.
         const fromFile = yield* loadFromFile
         if (fromFile) return normalize(fromFile, false)
-        const cached = options?.file ? undefined : yield* loadFromCache()
-        if (cached) return normalize(cached.catalog)
         const bundled = yield* loadSnapshot
-        if (bundled) return bundled
-        if (!fetch) return []
-        const catalog = yield* lock.withPermit(
-          Effect.gen(function* () {
-            const stored = options?.file ? undefined : yield* loadFromCache()
-            if (stored) return stored.catalog
-            return yield* fetchAndWrite()
-          }),
-        )
-        return normalize(catalog)
+        return bundled ?? []
       }).pipe(Effect.withSpan("ModelsDev.populate"), Effect.orDie)
 
-      const [cachedGet, invalidate] = yield* Effect.cachedInvalidateWithTTL(populate, Duration.infinity)
+      const cachedGet = yield* Effect.cached(populate)
 
-      const get = (): Effect.Effect<readonly Snapshot[]> => cachedGet
-
-      const refresh = Effect.fn("ModelsDev.refresh")(function* (force = false) {
-        yield* lock
-          .withPermit(
-            Effect.gen(function* () {
-              const stored = yield* loadFromCache()
-              if (!force && stored && Date.now() - stored.updatedAt < Duration.toMillis(ttl)) return
-              const text = yield* fetchApi()
-              const digest = bodyDigest(text)
-              // models.dev rarely changes between polls; skip the cache write,
-              // invalidation, and Refreshed event for a byte-identical body so
-              // downstream provider/model update listeners stay quiet.
-              if (!force && stored?.digest === digest) return
-              yield* decodeCatalog(text)
-              yield* writeCache(text, digest)
-              yield* invalidate
-              yield* bus.publish(ModelsDev.Event.Refreshed, {})
-            }),
-          )
-          .pipe(
-            Effect.tapCause((cause) => Effect.logError("Failed to fetch models.dev", { cause: cause })),
-            Effect.ignore,
-          )
-      })
-
-      if (fetch && !process.argv.includes("--get-yargs-completions")) {
-        // Schedule.spaced runs the effect once, then waits between completions.
-        yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced(ttl)), Effect.ignore))
-      }
-
-      return Service.of({ get, refresh })
+      return Service.of({ get: () => cachedGet })
     }),
   )
 
@@ -518,7 +390,7 @@ export function configured(options?: Options) {
   return makeGlobalNode({
     service: Service,
     layer: layer(options),
-    deps: [FSUtil.node, Bus.node, App.node, KV.node, httpClient],
+    deps: [FSUtil.node],
   })
 }
 

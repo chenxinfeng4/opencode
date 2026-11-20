@@ -11,7 +11,7 @@ export const startServer = Effect.fnUntraced(function* (directory: string) {
     database: { path: ":memory:" },
     config: { directory },
     fs: { filewatcher: false },
-    models: { fetch: false },
+    models: {},
   })
   return {
     base: HttpServer.formatAddress(server.address),

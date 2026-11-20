@@ -555,6 +555,13 @@ export interface SlotMap {
     /** The timeline is the one on screen. */
     readonly active: boolean
   }
+  /** The side-dock toggle's row at the end of the timeline header; content sits left of the toggle. */
+  readonly "session.header.end": {
+    /** The owning session screen; always present. */
+    readonly screen: SessionScreen
+    /** The routed session; a new object when another session is routed. */
+    readonly session: MountedSession
+  }
   /** The actions at the end of the side region's tab strip. */
   readonly "session.panel.end": {
     /** The owning session screen; always present. */

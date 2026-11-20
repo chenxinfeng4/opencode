@@ -149,7 +149,6 @@ function Fixture(props: {
         platform: "desktop",
         windowID: "ssh-story",
         sshServers: api,
-        openExternal() {},
         restart: async () => {},
         notify: async () => {},
         openDirectoryPickerDialog: async () => null,

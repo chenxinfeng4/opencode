@@ -1,5 +1,8 @@
 import { createMemo, lazy, on, onCleanup, Suspense } from "solid-js"
-import { Command, createKeyed, onIdle, Panel, type Setup } from "../sdk"
+import { Icon } from "@opencode/ui/icon"
+import { IconButton } from "@opencode/ui/icon-button"
+import { Tooltip } from "@opencode/ui/tooltip"
+import { Command, createKeyed, onIdle, Panel, Slot, type MountedSession, type Setup } from "../sdk"
 import type Terminal from "./index"
 import { createTerminalModel, type TerminalWorkspace } from "./model"
 
@@ -13,6 +16,20 @@ const setup: Setup<typeof Terminal> = (ctx) => {
   onCleanup(model.dispose)
   // The host withdraws the listener with the extension.
   ctx.workspaces.on("remove", model.remove)
+
+  const toggle = (session: MountedSession) => {
+    const terminal = model.load(session)
+
+    if (layout.dock.opened(session)) {
+      terminal.cancelFocus()
+      layout.close(DOCK, session)
+
+      return
+    }
+
+    layout.open(DOCK, session)
+    terminal.requestFocus(terminal.active())
+  }
 
   // The routed session's workspace stays loaded while no panel renders it, like the session route did.
   const workspace = createMemo<TerminalWorkspace | undefined>((previous) => {
@@ -52,19 +69,11 @@ const setup: Setup<typeof Terminal> = (ctx) => {
       editable: true,
       enabled: routed(),
       run() {
-        const target = current()
+        const session = sessions.current()
 
-        if (!target) return
+        if (!session) return
 
-        if (layout.dock.opened(target.session)) {
-          target.terminal.cancelFocus()
-          layout.close(DOCK, target.session)
-
-          return
-        }
-
-        layout.open(DOCK, target.session)
-        target.terminal.requestFocus(target.terminal.active())
+        toggle(session)
       },
     }),
   )
@@ -157,6 +166,23 @@ const setup: Setup<typeof Terminal> = (ctx) => {
       <Suspense>
         <TerminalPanel model={model} session={props.session} onClose={() => layout.close(DOCK, props.session)} />
       </Suspense>
+    ),
+  })
+
+  // The timeline header's terminal toggle, left of the side-dock toggle.
+  ctx.add(Slot, {
+    at: "session.header.end",
+    order: 20,
+    render: (input) => (
+      <Tooltip value={ctx.t("command.toggle")} placement="bottom" class="flex items-center">
+        <IconButton
+          icon={<Icon name="terminal" />}
+          variant="ghost-muted"
+          size="large"
+          aria-label={ctx.t("command.toggle")}
+          onClick={() => toggle(input.session)}
+        />
+      </Tooltip>
     ),
   })
 }

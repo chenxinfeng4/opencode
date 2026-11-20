@@ -6,7 +6,8 @@ export function SessionHeaderSpacer(props: { visible: boolean }) {
 
   return (
     <Show when={isDesktop() && props.visible}>
-      <div class="size-7 shrink-0" aria-hidden />
+      {/* The floating header row holds the side-dock toggle and the slot left of it: two large icon buttons and a gap. */}
+      <div class="h-7 w-16 shrink-0" aria-hidden />
     </Show>
   )
 }

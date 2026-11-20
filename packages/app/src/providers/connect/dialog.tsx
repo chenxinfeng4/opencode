@@ -36,15 +36,11 @@ import type { ModelSelection } from "@/providers/models/selection"
 import { decode64 } from "@/runtime/persistence/base64"
 import { SettingsList } from "@/settings/list"
 import { useTabs } from "@/shell/tabs/tabs"
-import { Persist, persisted } from "@/runtime/persistence/storage"
-import { Persistence } from "@/runtime/persistence/schema"
-import { Schema } from "effect"
 import {
   createProviderConnectionController,
   providerFormDefaults,
   type ProviderConnectMethod,
 } from "./controller"
-import { DialogChatGPTPlanWelcome } from "./chatgpt-welcome"
 import { providerAccounts, type ProviderAccount } from "@/settings/providers/accounts"
 import { AccountNameInput } from "@/settings/providers/account-name"
 import { useProviderAccountActions } from "@/settings/providers/account-actions"
@@ -84,24 +80,13 @@ export const DialogConnectProvider: Component<{
   const [state, setState] = createStore<{
     completed: boolean
     modelProvider?: { id: string; name: string }
-    authorization: boolean
-    chatgptWelcome: boolean
     picked: boolean
   }>({
     completed: false,
-    authorization: false,
-    chatgptWelcome: false,
     picked: false,
   })
 
   const language = useLanguage()
-  const dialog = useDialog()
-
-  const [welcome, setWelcome, , welcomeReady] = persisted(
-    Persist.global("chatgpt-plan-welcome.v1"),
-    Persistence.struct({ seen: Schema.Boolean }),
-    { seen: false },
-  )
 
   const reset = controller.reset
   const back = { current: reset }
@@ -134,13 +119,8 @@ export const DialogConnectProvider: Component<{
               setBack={(handler) => (back.current = handler)}
               selection={props.selection}
               onDone={props.onDone ? () => setState("completed", true) : undefined}
-              onConnected={(methodID) => {
-                props.onConnected?.(provider)
-
-                if (provider === "openai" && methodID === "chatgpt-token-sharing") setState("chatgptWelcome", true)
-              }}
+              onConnected={() => props.onConnected?.(provider)}
               onFirstConnection={(provider) => setState("modelProvider", provider)}
-              onAuthorization={(authorization) => setState("authorization", authorization)}
             />
           )}
         </Match>
@@ -153,7 +133,6 @@ export const DialogConnectProvider: Component<{
 
   return (
     <Dialog
-      preventBackdropDismiss={state.authorization}
       containerClass={
         state.modelProvider
           ? "!h-[min(calc(100vh_-_16px),560px)] !w-[min(calc(100vw_-_16px),640px)]"
@@ -164,13 +143,6 @@ export const DialogConnectProvider: Component<{
           event.preventDefault()
           props.onDone()
         }
-
-        if (!state.chatgptWelcome) return
-        void Promise.resolve(welcomeReady.promise).then(() => {
-          if (welcome.seen) return
-          setWelcome("seen", true)
-          void dialog.show(() => <DialogChatGPTPlanWelcome />)
-        })
       }}
       class="[font-family:var(--v2-font-family-sans)] [&_[data-slot=dialog-header]]:!px-5 [&_[data-slot=dialog-header-title]]:!text-[15px] [&_[data-slot=dialog-header-title]]:!tracking-[-0.13px]"
       classList={{
@@ -387,9 +359,8 @@ function ProviderConnection(props: {
   setBack: (handler: () => void) => void
   selection?: ModelSelection
   onDone?: () => void
-  onConnected?: (methodID?: string) => void
+  onConnected?: () => void
   onFirstConnection: (provider: { id: string; name: string }) => void
-  onAuthorization: (authorization: boolean) => void
   accounts?: boolean
 }) {
   const dialog = useDialog()
@@ -447,8 +418,7 @@ function ProviderConnection(props: {
     directory,
     manual: () => (!!props.accounts && accounts().length > 0),
     onComplete: () => {
-      const method = controller.currentMethod()
-      props.onConnected?.(method?.type === "oauth" ? method.id : undefined)
+      props.onConnected?.()
       // The picker only lists the newest model per family by default, which hides most of
       // what a new connection just unlocked. Show everything the connected integration offers.
       global.models.show(connectionModels().map((model) => ({ providerID: model.providerID, modelID: model.id })))
@@ -514,13 +484,6 @@ function ProviderConnection(props: {
   const modelKey = (model: { providerID: string; id: string }) => `${model.providerID}:${model.id}`
   const selectedModel = () => connectionModels().find((model) => modelKey(model) === state.selectedModel)
 
-  createEffect(() => {
-    const current = controller.auth.state()
-    props.onAuthorization(
-      controller.authorization() !== undefined && (current === "waiting" || current === "refreshing"),
-    )
-  })
-
   const provider = createMemo(() => ({
     id: props.provider,
     name:
@@ -553,20 +516,6 @@ function ProviderConnection(props: {
             : undefined,
     }
   }
-
-  const code = createMemo(() => {
-    const authorization = controller.authorization()
-
-    if (!authorization) return
-    const userCode = new URL(authorization.url).searchParams.get("user_code")
-
-    if (userCode) return userCode
-    const instructions = authorization.instructions
-
-    if (instructions?.includes(":")) return instructions.split(":").pop()?.trim()
-
-    return instructions
-  })
 
   function AuthFormView() {
     const defaults = providerFormDefaults(controller.currentMethod()?.form)
@@ -951,101 +900,6 @@ function ProviderConnection(props: {
     )
   }
 
-  function OAuthCodeView() {
-    let codeInput: HTMLInputElement | undefined
-    const errorID = createUniqueId()
-
-    const [formStore, setFormStore] = createStore<{
-      value: string
-      error?: string
-    }>({
-      value: "",
-    })
-
-    onMount(() => {
-      codeInput?.focus({ preventScroll: true })
-    })
-
-    async function handleSubmit(e: SubmitEvent) {
-      e.preventDefault()
-
-      if (!(e.currentTarget instanceof HTMLFormElement)) return
-      const value = new FormData(e.currentTarget).get("code")
-      const code = value instanceof File || value === null ? "" : value
-
-      if (!code.trim()) {
-        setFormStore("error", language.t("provider.connect.oauth.code.required"))
-
-        return
-      }
-
-      setFormStore("error", undefined)
-      setFormStore("error", await controller.auth.completeCode(code))
-    }
-
-    return (
-      <div class="flex flex-col gap-5 px-3 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted">
-        <div>{language.t("provider.connect.oauth.code.description", { provider: provider().name })}</div>
-        <Button variant="neutral" icon="arrow-up-right" onClick={() => void controller.auth.open()}>
-          {language.t("provider.connect.oauth.openBrowser")}
-        </Button>
-        <form onSubmit={handleSubmit} class="flex flex-col items-start gap-5 self-stretch">
-          <label class="flex w-full flex-col gap-2 font-[530] leading-4 text-v2-text-text-base">
-            {language.t("provider.connect.oauth.code.label", { method: controller.currentMethod()?.label ?? "" })}
-            <TextInput
-              ref={codeInput}
-              class="!w-full"
-              name="code"
-              placeholder={language.t("provider.connect.oauth.code.placeholder")}
-              value={formStore.value}
-              invalid={formStore.error !== undefined}
-              aria-describedby={formStore.error ? errorID : undefined}
-              autocomplete="off"
-              spellcheck={false}
-              onInput={(event) => setFormStore("value", event.currentTarget.value)}
-            />
-          </label>
-          <Show when={formStore.error}>
-            {(error) => (
-              <div id={errorID} role="alert" class="-mt-4 text-xs text-v2-state-fg-danger">
-                {error()}
-              </div>
-            )}
-          </Show>
-          <Button type="submit" variant="contrast">
-            {language.t("common.continue")}
-          </Button>
-        </form>
-      </div>
-    )
-  }
-
-  function OAuthAutoView() {
-    return (
-      <div class="flex flex-col gap-5 px-3 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted">
-        <div>{language.t("provider.connect.oauth.auto.description", { provider: provider().name })}</div>
-        <StatusRow>{language.t("provider.connect.status.waiting")}</StatusRow>
-        <div class="flex flex-wrap items-center gap-2">
-          <Button variant="neutral" icon="arrow-up-right" onClick={() => void controller.auth.open()}>
-            {language.t("provider.connect.oauth.openBrowser")}
-          </Button>
-        </div>
-        <Show when={code()}>
-          {(value) => (
-            <TextField
-              label={language.t("provider.connect.oauth.auto.confirmationCode")}
-              description={language.t("provider.connect.oauth.auto.confirmationCode.description")}
-              class="font-mono"
-              value={value()}
-              readOnly
-              copyable
-            />
-          )}
-        </Show>
-      </div>
-    )
-  }
-
   const addAccount = () => {
     setState({ adding: true, direct: false, confirming: undefined })
 
@@ -1305,13 +1159,6 @@ function ProviderConnection(props: {
             <DialogTitle>
               <Switch>
                 <Match when={showAccounts()}>{provider().name}</Match>
-                <Match
-                  when={
-                    props.provider === "anthropic" && controller.currentMethod()?.label?.toLowerCase().includes("max")
-                  }
-                >
-                  {language.t("provider.connect.title.anthropicProMax")}
-                </Match>
                 <Match when={true}>{language.t("provider.connect.title", { provider: provider().name })}</Match>
               </Switch>
             </DialogTitle>
@@ -1340,12 +1187,6 @@ function ProviderConnection(props: {
             </Match>
             <Match when={controller.currentMethod()?.type === "key"}>
               <ApiAuthView />
-            </Match>
-            <Match when={controller.authorization()?.mode === "code"}>
-              <OAuthCodeView />
-            </Match>
-            <Match when={controller.authorization()?.mode === "auto"}>
-              <OAuthAutoView />
             </Match>
           </Switch>
         </div>

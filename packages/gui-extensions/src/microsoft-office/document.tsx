@@ -102,7 +102,8 @@ export default function OfficeDocument(props: FileViewerProps) {
         const scroll: Scroll = { to: undefined }
 
         const follow = (link: WordLink) => {
-          if (link.kind === "external") return ctx.system.openExternal(link.url)
+          // External browser links are disabled in this build; only in-document bookmarks navigate.
+          if (link.kind === "external") return
 
           void opened()
             .bookmark(link.bookmark)

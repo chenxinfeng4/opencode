@@ -172,7 +172,6 @@ function LspMenu(props: ServiceMenuProps) {
 
 function McpMenu(props: ServiceMenuProps) {
   const ctx = useExtension()
-  const system = ctx.system
   const data = () => props.session.server.data
 
   const toggle = useMutation(() => ({
@@ -197,18 +196,7 @@ function McpMenu(props: ServiceMenuProps) {
       const current = source.location.mcp.server.list(ref)?.find((item) => item.name === input.name)
 
       if (input.enabled && current?.status.status === "needs_auth" && current.integrationID) {
-        const integration = await client.integration.get({ integrationID: current.integrationID, location: ref })
-        const method = integration.data?.methods.find((item) => item.type === "oauth" && !item.form?.length)
-
-        if (!method || method.type !== "oauth") throw new Error(ctx.t("mcp.interactiveAuth", { name: input.name }))
-
-        const attempt = await client.integration.oauth.connect({
-          integrationID: current.integrationID,
-          methodID: method.id,
-          location: ref,
-        })
-
-        system.openExternal(attempt.data.url)
+        throw new Error(ctx.t("mcp.interactiveAuth", { name: input.name }))
       }
 
       source.location.mcp.resource.invalidate(ref)

@@ -37,7 +37,7 @@ const setup = Effect.gen(function* () {
     app: { version: "test" },
     database: { path: ":memory:" },
     config: { project: false },
-    models: { fetch: false },
+    models: { },
     fs: { filewatcher: false },
   })
   const api = OpenCode.make({
