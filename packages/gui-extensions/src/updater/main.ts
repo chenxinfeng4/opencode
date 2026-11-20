@@ -103,7 +103,8 @@ const setup: MainSetup<typeof definition> = async (ctx) => {
       id: "check",
       label: ctx.t("menu.check"),
       after: "about",
-      enabled: () => enabled,
+      // No update feed is configured in offline builds, so there is nothing to check.
+      enabled: () => platform !== undefined,
       run(window) {
         // Beta builds check in the focused window, which can offer the stable installer.
         if (build.channel !== "beta") return void runFork(show)

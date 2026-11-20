@@ -8,9 +8,14 @@ const updateClient = pkg.autoUpdater
 
 const restartTimeout = 10_000
 
-const stableArtifact = "https://opencode.ai/update/api/latest/desktop/opencode"
+// Update checks hit this URL only. This fork ships offline: without OPENCODE_UPDATE_URL set, make returns no
+// platform and no check runs, background or manual. The URL serves the stable artifact manifest ({"version",
+// "metadata":{"files":{...}}} for the macOS beta path) and the electron-updater feed (latest.yml and friends).
+const feed = process.env.OPENCODE_UPDATE_URL
 
 export const make = Effect.fn("Updater.platform")(function* (channel: string) {
+  if (feed === undefined) return undefined
+
   const external = requiresStableMacInstaller(process.platform, channel)
   const userAgent = `opencode/${channel === "prod" ? "latest" : channel}/${app.getVersion()}/desktop`
   const runFork = Effect.runForkWith(yield* Effect.context())
@@ -21,6 +26,8 @@ export const make = Effect.fn("Updater.platform")(function* (channel: string) {
     debug: (...args) => runFork(Effect.logDebug(...args)),
   }
   updateClient.channel = "latest"
+  // The feed baked in at build time is the upstream one; an explicit URL always wins.
+  updateClient.setFeedURL({ provider: "generic", url: feed })
   updateClient.requestHeaders = { "User-Agent": userAgent }
   updateClient.allowPrerelease = false
   updateClient.allowDowngrade = true
@@ -37,7 +44,7 @@ export const make = Effect.fn("Updater.platform")(function* (channel: string) {
     checkForUpdate: Effect.tryPromise({
       try: async () => {
         if (external) {
-          const response = await fetch(stableArtifact, { headers: { "User-Agent": userAgent } })
+          const response = await fetch(feed, { headers: { "User-Agent": userAgent } })
 
           if (!response.ok) throw new Error(`Stable OpenCode update check failed: ${response.status}`)
           const download = stableMacDownload(await response.json(), process.arch)

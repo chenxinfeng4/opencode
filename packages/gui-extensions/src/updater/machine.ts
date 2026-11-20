@@ -1,4 +1,4 @@
-import { Deferred, Effect, Exit, Fiber } from "effect"
+import { Deferred, Effect, Exit, Fiber, Match } from "effect"
 import type { UpdaterState } from "./contract"
 
 export type UpdateTarget =
@@ -156,12 +156,11 @@ export const make = Effect.fn("Updater.make")(function* (dependencies: Dependenc
     const deferred = Deferred.makeUnsafe<UpdaterState>()
     pending = deferred
 
-    const update =
-      state.status === "ready"
-        ? refreshStaged(platform, state.version)
-        : state.status === "download-required"
-          ? refreshExternal(platform)
-          : findAndStage(platform)
+    const update = Match.value(state).pipe(
+      Match.when({ status: "ready" }, ({ version }) => refreshStaged(platform, version)),
+      Match.when({ status: "download-required" }, () => refreshExternal(platform)),
+      Match.orElse(() => findAndStage(platform)),
+    )
 
     return update.pipe(
       Effect.tap((result) => Deferred.succeed(deferred, result)),
@@ -248,10 +247,13 @@ export const make = Effect.fn("Updater.make")(function* (dependencies: Dependenc
   })
 
   const starting = yield* start.pipe(Effect.forkScoped)
-  yield* Effect.gen(function* () {
-    yield* Effect.sleep("10 minutes")
-    yield* check
-  }).pipe(Effect.forever, Effect.forkScoped)
+
+  // Without a platform every check is a no-op, so do not keep a timer ticking for one.
+  if (dependencies.platform)
+    yield* Effect.gen(function* () {
+      yield* Effect.sleep("10 minutes")
+      yield* check
+    }).pipe(Effect.forever, Effect.forkScoped)
 
   return {
     check,
