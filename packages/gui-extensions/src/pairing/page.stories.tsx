@@ -1,9 +1,9 @@
-import { PairingHost, pairingRemote } from "../../../storybook/.storybook/mocks/gui-extensions/pairing"
+import { PairingHost, pairing } from "../../../storybook/.storybook/mocks/gui-extensions/pairing"
 import PairingPage from "./page"
 
-const story = (remote: { enabled: boolean; fails?: boolean }, main = true) => ({
+const story = (reachable: boolean, main = true) => ({
   render: () => {
-    const mock = pairingRemote(remote)
+    const mock = pairing({ reachable })
 
     return (
       <PairingHost>
@@ -24,20 +24,17 @@ export default {
   parameters: {
     docs: {
       description: {
-        component: "Settings → Pairing on desktop: pair a device from anywhere through remote access, and its QR code.",
+        component: "Settings → Pairing on desktop: pair a device on the same network, and its QR code.",
       },
     },
   },
 }
 
-/** Remote access is on, so Pair device shows the QR code at once. */
-export const RemoteOn = story({ enabled: true })
+/** The server has a reachable address, so Pair device shows the QR code at once. */
+export const Reachable = story(true)
 
-/** The first pairing turns remote access on, then shows the QR code once the tunnel connects. */
-export const FirstPairing = story({ enabled: false })
+/** The server listens on loopback only, so the dialog explains how to make the server reachable. */
+export const OnlyLoopback = story(false)
 
-/** Remote access cannot be turned on, so the dialog offers to try again. */
-export const SetupFails = story({ enabled: false, fails: true })
-
-/** Pairing's main side is not running, so remote access cannot be turned on and pairing is unavailable. */
-export const WithoutMainProcess = story({ enabled: false }, false)
+/** Pairing's main side is not running, so the display setting is missing. */
+export const WithoutMainProcess = story(true, false)

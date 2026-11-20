@@ -410,7 +410,7 @@ export interface ServerEntry {
   readonly id: string
   /** The display name. */
   readonly name: string
-  /** Short badge after the name, e.g. "SSH". */
+  /** Short badge after the name, e.g. "WSL". */
   readonly label?: string
   /** Where the server stands. */
   readonly state: ServerState
@@ -459,7 +459,7 @@ export interface ServerEntry {
   }): JSX.Element
 }
 
-/** A source of servers, e.g. SSH hosts or WSL distributions. */
+/** A source of servers, e.g. WSL distributions. */
 export interface Server {
   /**
    * Startup waits until every source is ready. A ready source's entries are its complete inventory: the host

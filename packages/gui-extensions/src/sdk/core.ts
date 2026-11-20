@@ -609,7 +609,7 @@ export interface StoreDeclaration<
  */
 export type MainStoreFrom =
   | {
-      /** The key in the settings file, e.g. `ssh.servers`. */
+      /** The key in the settings file, e.g. `wslServers`. */
       readonly settings: string
       /** Another settings file of the desktop app, e.g. `opencode.updater`. Defaults to the app's settings file. */
       readonly file?: string

@@ -3,18 +3,14 @@ export default {
   title: "Pairing",
   description: "Connect another device to this machine's OpenCode server.",
   "pair.title": "Pair a device",
-  "pair.description":
-    "Connect a phone, tablet, or another computer from anywhere through an end-to-end encrypted tunnel.",
+  "pair.description": "Connect a phone, tablet, or another computer on this machine's network.",
   "pair.open": "Pair device",
   "pair.unavailable": "Pairing is unavailable right now.",
   "dialog.description": "Scan the code with the OpenCode app on another device, or copy the link.",
-  "remote.title": "Remote access",
-  "remote.description":
-    "Paired devices reach this computer's OpenCode server over the internet. Turning it off disconnects them until you pair them again.",
-  "remote.error": "Could not update remote access. Try again.",
-  "setup.title": "Setting up remote access…",
-  "setup.description": "This can take a minute.",
-  "setup.error": "Could not set up remote access.",
+  "setup.pending": "Preparing the pairing code…",
+  "setup.error": "No reachable address found for this server.",
+  "setup.hint":
+    "Pair from a device on the same network, or run `opencode service set hostname 0.0.0.0` on this machine first.",
   retry: "Try again",
   "screenActive.title": "Keep screen active",
   "screenActive.description": "Prevent this computer’s display from sleeping while OpenCode is running.",

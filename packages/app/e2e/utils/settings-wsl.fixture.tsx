@@ -3,30 +3,27 @@ import { createMemo, Show } from "solid-js"
 import { createStore, unwrap } from "solid-js/store"
 import { render } from "solid-js/web"
 import type { Bridge, BridgeMessage } from "@opencode/gui-extensions/sdk/bridge"
-import type { SshItem, SshState } from "../../../gui-extensions/src/ssh/contract"
 import type { WslServerRuntime, WslServersState } from "../../../gui-extensions/src/wsl/contract"
 import { AppBaseProviders, AppInterface } from "../../src/app"
 import { PlatformProvider, type Platform } from "../../src/runtime/platform/platform"
 import { ServerConnection } from "../../src/runtime/server/registry"
 import { useExtensionServers } from "../../src/runtime/extension/servers"
 
-/** The input of a WSL or SSH method this fixture answers. */
+/** The input of a WSL method this fixture answers. */
 type FixtureInput = { id?: string; name?: string }
 
-/** A main-side method: SSH `start` answers with the state revision, the others with nothing. */
-type FixtureMethod = (input: FixtureInput) => number | void
+/** A main-side method this fixture answers. */
+type FixtureMethod = (input: FixtureInput) => void
 
 // A desktop window. `wsl` is the Ubuntu server's endpoint (default `server`); updating OpenCode restarts it on `restart`
-// (default `wsl`). `ssh` adds a saved SSH server `box`, ready on that endpoint with password `ssh-1`; each connect
-// brings up a new remote server with the next password (`ssh-2`, ...). `storage=async` stores in localStorage behind
-// asynchronous reads like the desktop app's; reads of keys containing `hold` wait for "Load held storage".
+// (default `wsl`). `storage=async` stores in localStorage behind asynchronous reads like the desktop app's; reads of
+// keys containing `hold` wait for "Load held storage".
 export function mount(input: {
   server: string
   mode: "failed" | "stopped" | "ready"
   wsl?: string | null
   restart?: string | null
   path?: string | null
-  ssh?: string | null
   storage?: string | null
   hold?: string | null
   /** Enables the updater Ipc; check and install reject with this message, which may be empty. */
@@ -58,28 +55,11 @@ export function mount(input: {
   render(() => {
     const [store, setStore] = createStore<{
       calls: string[]
-      connects: number
       available: boolean
       state: WslServersState
-      ssh: SshState
     }>({
       calls: [],
-      connects: 0,
       available: true,
-      ssh: {
-        revision: 0,
-        servers: input.ssh
-          ? [
-              {
-                config: { id: "box", target: "box", name: "box" },
-                saved: true,
-                stage: "ready",
-                http: { url: input.ssh, password: "ssh-1" },
-                detail: "",
-              },
-            ]
-          : [],
-      },
       state: {
         runtime: { available: true, version: "2", error: null },
         installed: [],
@@ -112,9 +92,9 @@ export function mount(input: {
       },
     })
 
-    // The main-process WSL and SSH extensions, as the extension bridge sees them.
+    // The main-process WSL extension, as the extension bridge sees it.
     const listeners = new Set<(message: BridgeMessage) => void>()
-    const snapshot = (ipc: string) => structuredClone(unwrap(ipc === "ssh" ? store.ssh : store.state))
+    const snapshot = (ipc: string) => structuredClone(unwrap(store.state))
 
     const publish = (ipc: string) =>
       listeners.forEach((listener) => listener({ type: "state", ipc, state: snapshot(ipc) }))
@@ -123,12 +103,6 @@ export function mount(input: {
     const setRuntime = (id: string | undefined, runtime: WslServerRuntime) =>
       setStore("state", (state) => ({
         servers: state.servers.map((server) => (server.config.id === id ? { ...server, runtime } : server)),
-      }))
-
-    const setSsh = (item: Partial<SshItem>) =>
-      setStore("ssh", (state) => ({
-        revision: state.revision + 1,
-        servers: state.servers.map((server) => ({ ...server, ...item })),
       }))
 
     const wsl = {
@@ -158,20 +132,7 @@ export function mount(input: {
       },
     } satisfies Readonly<Record<string, FixtureMethod>>
 
-    const ssh = {
-      // Like main: a connect opens a new tunnel to a remote server with a new password.
-      start() {
-        setStore("connects", (count) => count + 1)
-        setSsh({ stage: "ready", http: { url: input.ssh ?? "", password: `ssh-${store.connects + 1}` } })
-
-        return store.ssh.revision
-      },
-    } satisfies Readonly<Record<string, FixtureMethod>>
-
-    const methods = new Map<string, Readonly<Record<string, FixtureMethod>>>([
-      ["wsl", wsl],
-      ["ssh", ssh],
-    ])
+    const methods = new Map<string, Readonly<Record<string, FixtureMethod>>>([["wsl", wsl]])
 
     const bridge: Bridge = {
       packaged: false,
@@ -180,7 +141,7 @@ export function mount(input: {
         const method = methods.get(request.ipc)?.[request.method]
 
         if (!method) throw new Error("Unexpected fixture action")
-        // SAFETY: every WSL and SSH method the fixture answers takes a struct of these optional string fields.
+        // SAFETY: every WSL method the fixture answers takes a struct of these optional string fields.
         const result = method(request.input as FixtureInput)
         publish(request.ipc)
 
@@ -189,7 +150,7 @@ export function mount(input: {
       async subscribe(ipc) {
         if (ipc === "updater" && input.updater != null) return { available: true, state: { status: "idle" } }
 
-        if (ipc === "wsl" || ipc === "ssh") return { available: true, state: snapshot(ipc) }
+        if (ipc === "wsl") return { available: true, state: snapshot(ipc) }
 
         return { available: false }
       },
@@ -265,43 +226,6 @@ export function mount(input: {
             />
             WSL extension
           </label>
-          {/* The SSH extension's main side going away and coming back. */}
-          <label>
-            <input
-              type="checkbox"
-              checked
-              onChange={(event) => {
-                const available = event.currentTarget.checked
-                listeners.forEach((listener) => listener({ type: "available", ipc: "ssh", available }))
-
-                if (available) publish("ssh")
-              }}
-            />
-            SSH extension
-          </label>
-          {/* The SSH tunnel dropping, which only main notices. */}
-          <Show when={input.ssh}>
-            <button
-              type="button"
-              onClick={() => {
-                setSsh({ stage: "disconnected" })
-                publish("ssh")
-              }}
-            >
-              Drop SSH tunnel
-            </button>
-            {/* A background reconnect that needs a password, as main reports it to every window. */}
-            <button
-              type="button"
-              onClick={() => {
-                setSsh({ stage: "authentication" })
-                publish("ssh")
-              }}
-            >
-              Require SSH sign-in
-            </button>
-            <output aria-label="SSH connects">{store.connects}</output>
-          </Show>
           <Show when={input.hold}>
             <button type="button" onClick={() => held.resolve()}>
               Load held storage

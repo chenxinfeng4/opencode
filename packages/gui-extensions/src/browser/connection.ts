@@ -115,7 +115,7 @@ export function createConnection(input: {
     publish()
   }
 
-  // Main closed the binding, or never took it (an SSH server's endpoint is missing while it reconnects).
+  // Main closed the binding, or never took it (a server's endpoint is missing while it reconnects).
   // Keep the tabs and register again with backoff; commands sent through it already failed and are not replayed.
   const reopen = (registration: Registration) => {
     if (disposed || state.registration !== registration) return

@@ -12,7 +12,7 @@ export const menus: Setup<typeof Fixture> = (ctx) => {
     menu: "server.row",
     id: "connect",
     title: "Connect",
-    when: (server) => server.startsWith("ssh:"),
+    when: (server) => server.startsWith("wsl:"),
     enabled: () => true,
     run: (server) => void server.length,
   })

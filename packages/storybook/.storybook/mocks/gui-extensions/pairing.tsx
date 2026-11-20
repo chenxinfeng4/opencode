@@ -8,33 +8,21 @@ import type { PairingServer } from "../../../../gui-extensions/src/pairing/page"
 import "@/settings/settings.css"
 
 /**
- * A local server and pairing main entry. Remote access starts on or off; turning it on takes a moment, after which
- * the server advertises its tunnel, as the background service does once OpenTunnel attaches. `fails` makes turning
- * it on fail, as when the tunnel cannot be created.
+ * A local server whose info lists a reachable address unless `reachable` is false, as when it listens on loopback
+ * only, and the pairing main entry.
  */
-export function pairingRemote(input: { enabled: boolean; fails?: boolean }) {
-  const state = { enabled: input.enabled }
+export function pairing(input: { reachable?: boolean }) {
   const server: PairingServer = {
     client: {
       server: {
         info: async () => ({
-          urls: [
-            "http://127.0.0.1:49374",
-            ...(state.enabled ? ["https://cbf8424f2044b16d.vcybm3xt4hhu.opentunnel.xyz"] : []),
-          ],
+          urls: ["http://127.0.0.1:49374", ...(input.reachable === false ? [] : ["http://192.168.10.248:49374"])],
         }),
         pair: async () => ({ code: pairingCode(), expires_in: 300 }),
       },
     },
   }
   const client: IpcClient<typeof Pairing.spec> = {
-    remote: async () => state.enabled,
-    setRemote: async (enabled) => {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      if (input.fails) throw new Error("Timed out creating the remote access tunnel")
-      state.enabled = enabled
-    },
     screenActive: async () => false,
     setScreenActive: async () => undefined,
     state: () => undefined,

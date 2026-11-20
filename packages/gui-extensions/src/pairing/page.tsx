@@ -6,9 +6,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/solid-query"
 import { createMemo, createSignal, onCleanup, Show, type Accessor, type JSX } from "solid-js"
 import { renderSVG } from "uqr"
 import { useExtension, type Live, type IpcClient } from "../sdk"
+import { reachableAddresses } from "./addresses"
 import type { Pairing } from "./contract"
 import type definition from "./index"
-import { remoteAddress } from "./remote"
 
 type Client = IpcClient<typeof Pairing.spec>
 
@@ -25,9 +25,6 @@ export type PairingServer = {
   }
 }
 
-/** Where remote access stands for a pairing: turning on, on, or failed to turn on. */
-type Setup = "pending" | "ready" | "failed"
-
 export default function PairingPage(props: {
   server: Accessor<PairingServer | undefined>
   pairing: Accessor<Live<Client>>
@@ -37,60 +34,22 @@ export default function PairingPage(props: {
   const dialogs = ctx.dialogs
   const queryClient = useQueryClient()
 
-  // Remote access and the display setting need pairing's main side; codes come from the server, so they never wait.
+  // The display setting needs pairing's main side; pairing codes come from the server, so they never wait.
   const main = () => {
     const live = props.pairing()
 
     return live.status === "active" ? live : undefined
   }
 
-  const remoteKey = () => [ctx.id, "remote", main()?.generation]
-
-  const remote = useQuery(() => ({
-    queryKey: remoteKey(),
-    queryFn: (input) => {
-      const live = main()
-
-      if (!live) throw new Error("Pairing's main side is not active")
-
-      return live.value.remote({ signal: input.signal })
-    },
-    enabled: !!main(),
-    gcTime: 0,
-  }))
-
-  // Main restarts the background service on every change, so a setting that already matches is left alone unless
-  // `restart` asks for it, as a tunnel that never connected needs.
-  const change = useMutation(() => ({
-    mutationFn: async (input: { enabled: boolean; restart?: boolean }) => {
-      const live = main()
-
-      if (!live) throw new Error("Pairing's main side is not active")
-
-      if (input.restart || (await live.value.remote()) !== input.enabled) await live.value.setRemote(input.enabled)
-    },
-    onSuccess: (_, input) => queryClient.setQueryData(remoteKey(), input.enabled),
-  }))
-
-  const setup = (): Setup => {
-    if (change.isPending) return "pending"
-
-    if (change.isError && change.variables?.enabled) return "failed"
-
-    if (remote.data === true) return "ready"
-
-    return remote.isError ? "failed" : "pending"
-  }
-
-  const tunnel = async (signal: AbortSignal) => {
+  const addresses = async (signal: AbortSignal) => {
     const server = props.server()
 
     if (!server) throw new Error("The local server is not listed")
-    const address = remoteAddress((await server.client.server.info({ signal })).urls)
+    const found = reachableAddresses((await server.client.server.info({ signal })).urls)
 
-    if (!address) throw new Error("The remote access tunnel is not connected yet")
+    if (found.length === 0) throw new Error("The server has no address another device can reach")
 
-    return address
+    return found
   }
 
   const code = async (signal: AbortSignal) => {
@@ -102,17 +61,8 @@ export default function PairingPage(props: {
     return { code: pairing.code, expiresIn: pairing.expires_in }
   }
 
-  // Every pairing goes through remote access, so pairing turns it on first.
   const pair = () => {
-    if (remote.data !== true && !change.isPending) change.mutate({ enabled: true })
-    dialogs.open(() => (
-      <DialogPairing
-        setup={setup}
-        onRetry={(restart) => change.mutate({ enabled: true, restart })}
-        tunnel={tunnel}
-        code={code}
-      />
-    ))
+    dialogs.open(() => <DialogPairing addresses={addresses} code={code} />)
   }
 
   const screenActive = useQuery(() => ({
@@ -154,27 +104,11 @@ export default function PairingPage(props: {
         <section class="settings-section" aria-label={ctx.t("title")}>
           <div data-component="settings-list">
             <Row title={ctx.t("pair.title")} description={ctx.t("pair.description")}>
-              <Button
-                variant="neutral"
-                disabled={!main() || !props.server() || (change.isPending && change.variables?.enabled === false)}
-                onClick={pair}
-              >
+              <Button variant="neutral" disabled={!props.server()} onClick={pair}>
                 {ctx.t("pair.open")}
               </Button>
             </Row>
             <Show when={main()}>
-              <div data-action="settings-remote-access">
-                <Row title={ctx.t("remote.title")} description={ctx.t("remote.description")}>
-                  <Switch
-                    hideLabel
-                    checked={change.isPending ? change.variables?.enabled === true : remote.data === true}
-                    disabled={!remote.isSuccess || change.isPending}
-                    onChange={(enabled) => change.mutate({ enabled })}
-                  >
-                    {ctx.t("remote.title")}
-                  </Switch>
-                </Row>
-              </div>
               <div data-action="settings-keep-screen-active">
                 <Row title={ctx.t("screenActive.title")} description={ctx.t("screenActive.description")}>
                   <Switch
@@ -189,11 +123,6 @@ export default function PairingPage(props: {
               </div>
             </Show>
           </div>
-          <Show when={main() && (remote.error || change.error)}>
-            <p class="text-text-danger-base" role="alert">
-              {ctx.t("remote.error")}
-            </p>
-          </Show>
           <Show when={main() && (screenActive.error || screenActivity.error)}>
             <p class="text-text-danger-base" role="alert">
               {ctx.t("screenActive.error")}
@@ -215,32 +144,26 @@ export default function PairingPage(props: {
 type CopiedTimer = { timeout?: ReturnType<typeof setTimeout> }
 
 function DialogPairing(props: {
-  setup: Accessor<Setup>
-  /** Turns remote access on again; `restart` restarts the service even when it is already on. */
-  onRetry: (restart: boolean) => void
-  tunnel: (signal: AbortSignal) => Promise<string>
+  addresses: (signal: AbortSignal) => Promise<readonly string[]>
   code: (signal: AbortSignal) => Promise<{ readonly code: string; readonly expiresIn: number }>
 }) {
   const ctx = useExtension()
   const system = ctx.system
 
-  // The service attaches the tunnel in the background after it starts, so ask until the server advertises it, for
-  // about three minutes, as `opencode pair --remote` waits.
-  const tunnel = useQuery(() => ({
-    queryKey: [ctx.id, "tunnel"],
-    queryFn: (input) => props.tunnel(input.signal),
-    enabled: props.setup() === "ready",
+  // The server listens on loopback only until its hostname changes, so the retry button asks again.
+  const address = useQuery(() => ({
+    queryKey: [ctx.id, "address"],
+    queryFn: (input) => props.addresses(input.signal),
     gcTime: 0,
     staleTime: Infinity,
-    retry: 180,
-    retryDelay: 1000,
+    retry: false,
   }))
 
   // Codes are single-use, so replace the link as soon as the server forgets the current code.
   const code = useQuery(() => ({
-    queryKey: [ctx.id, "code", tunnel.data],
+    queryKey: [ctx.id, "code", address.data],
     queryFn: (input) => props.code(input.signal),
-    enabled: tunnel.isSuccess,
+    enabled: address.isSuccess,
     gcTime: 0,
     refetchInterval: (query) => (query.state.data?.expiresIn ?? 60) * 1000,
     // A minimized window must not come back to a code that expired while it was hidden.
@@ -260,13 +183,12 @@ function DialogPairing(props: {
   }
 
   const url = createMemo(() => {
-    if (!code.isSuccess || !tunnel.isSuccess) return
+    if (!code.isSuccess || !address.isSuccess) return
 
-    return new URL(`/auth/connect/${code.data.code}`, tunnel.data).href
+    return new URL(`/auth/connect/${code.data.code}`, address.data[0]).href
   })
 
-  // A tunnel error from before a retry stays on the disabled query, so it counts only once setup is ready again.
-  const failed = () => props.setup() === "failed" || (props.setup() === "ready" && tunnel.isError)
+  const failed = () => address.isError
 
   // "Copied" shows for two seconds after each copy.
   const copied: CopiedTimer = {}
@@ -300,12 +222,12 @@ function DialogPairing(props: {
     </button>
   )
 
-  // The QR code carries the remote address as `opencode pair --remote` prints it, {"code","urls"} JSON, which the
+  // The QR code carries the reachable addresses as `opencode pair` prints them, {"code","urls"} JSON, which the
   // app's scanner reads.
   const qr = createMemo(() => {
-    if (!code.isSuccess || !tunnel.isSuccess) return
+    if (!code.isSuccess || !address.isSuccess) return
 
-    return renderSVG(JSON.stringify({ code: code.data.code, urls: [tunnel.data] }), {
+    return renderSVG(JSON.stringify({ code: code.data.code, urls: address.data }), {
       border: 4,
       blackColor: "currentColor",
       whiteColor: "transparent",
@@ -352,14 +274,9 @@ function DialogPairing(props: {
             role="status"
           >
             <Spinner class="size-5 text-v2-icon-icon-muted" />
-            <Show when={!tunnel.isSuccess}>
-              <span class="text-[13px] font-[530] leading-[var(--line-height-compact)] text-v2-text-text-base">
-                {ctx.t("setup.title")}
-              </span>
-              <span class="text-12-regular leading-[var(--line-height-compact)] text-v2-text-text-muted">
-                {ctx.t("setup.description")}
-              </span>
-            </Show>
+            <span class="text-[13px] font-[530] leading-[var(--line-height-compact)] text-v2-text-text-base">
+              {ctx.t("setup.pending")}
+            </span>
           </div>
         </Show>
         <Show when={failed()}>
@@ -369,8 +286,10 @@ function DialogPairing(props: {
             <p class="text-text-danger-base" role="alert">
               {ctx.t("setup.error")}
             </p>
-            {/* A tunnel that never connected comes back when the service starts it again. */}
-            <Button variant="neutral" onClick={() => props.onRetry(tunnel.isError)}>
+            <span class="text-12-regular leading-[var(--line-height-compact)] text-v2-text-text-muted">
+              {ctx.t("setup.hint")}
+            </span>
+            <Button variant="neutral" onClick={() => void address.refetch()}>
               {ctx.t("retry")}
             </Button>
           </div>
