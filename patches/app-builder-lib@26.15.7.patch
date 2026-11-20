@@ -1,0 +1,17 @@
+diff --git a/out/targets/nsis/NsisTarget.js b/out/targets/nsis/NsisTarget.js
+index ee7be54871dab98646e0bc5a918d4240e241512e..599b30eff7b3aec8eb153ccece1dfd5a2e050d50 100644
+--- a/out/targets/nsis/NsisTarget.js
++++ b/out/targets/nsis/NsisTarget.js
+@@ -358,7 +358,11 @@ class NsisTarget extends core_1.Target {
+         await this.executeMakensis(defines, commands, sharedHeader + (await this.computeFinalScript(script, false, archs)));
+         // http://forums.winamp.com/showthread.php?p=3078545
+         // TODO: remove workaround when wine is fully upgraded to 11
+-        if ((0, macosVersion_1.isMacOsCatalina)()) {
++        // The native UninstallerReader extraction is not macOS-specific: it parses the NSIS
++        // data block out of the stub, so use it on every non-Windows host instead of
++        // requiring wine (electron-builder's downloadable wine toolset is incomplete and a
++        // distro wine needs 32-bit multilib for the stub).
++        if (process.platform !== "win32") {
+             try {
+                 await nsisUtil_1.UninstallerReader.exec(installerPath, uninstallerPath);
+             }

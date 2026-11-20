@@ -113,7 +113,10 @@ const getBase = (appId: string): Configuration => {
       {
         from: "resources/",
         to: "",
-        filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version"],
+        // Each platform ships only its own CLI binary name (see afterPack). Cross builds may
+        // have several platform binaries sitting in resources/, and CI prepare steps leave the
+        // non-suffixed name behind even for Windows targets.
+        filter: [target.os === "win32" ? "opencode-cli.exe" : "opencode-cli", "opencode-cli.version"],
       },
     ],
     afterPack: async (context) => {
@@ -176,17 +179,22 @@ const getBase = (appId: string): Configuration => {
       notarize: true,
       target: ["dmg", "zip"],
     },
+    // Cross-building the NSIS uninstaller on Linux/macOS extracts the uninstaller natively
+    // (see patches/app-builder-lib*.patch — NsisTarget uses UninstallerReader off-Windows), so
+    // no wine is required. Windows hosts keep the upstream flow.
     protocols: {
       name: "OpenCode",
       schemes: ["opencode"],
     },
     win: {
       icon: `resources/icons/icon.ico`,
-      signtoolOptions: {
-        sign: signWindows,
-      },
+      // signtool.exe only runs natively on Windows hosts (Linux needs wine, which offline
+      // cross-packaging does not require): skip code signing off-Windows entirely while
+      // keeping icon, metadata, and asar-integrity editing via signExecutable: false.
+      ...(process.platform === "win32"
+        ? { signtoolOptions: { sign: signWindows }, verifyUpdateCodeSignature: false }
+        : { signExecutable: false }),
       target: ["nsis"],
-      verifyUpdateCodeSignature: false,
     },
     nsis: {
       include: path.join(packageDir, "resources", "windows", "installer.nsh"),

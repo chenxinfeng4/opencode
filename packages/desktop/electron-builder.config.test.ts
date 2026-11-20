@@ -79,8 +79,17 @@ test("shared packaging defaults", async () => {
   expect(config.nsis?.include).toBe(include)
   expect(await Bun.file(include).exists()).toBe(true)
   expect(config.files).toContain("!resources/opencode-cli*")
-  expect(config.extraResources).toEqual([
-    { from: "resources/", to: "", filter: ["opencode-cli", "opencode-cli.exe", "opencode-cli.version"] },
+})
+
+test.each([
+  { target: "aarch64-apple-darwin", cli: "opencode-cli" },
+  { target: "x86_64-pc-windows-msvc", cli: "opencode-cli.exe" },
+  { target: "x86_64-unknown-linux-gnu", cli: "opencode-cli" },
+])("extraResources ships only the CLI binary for $target", ({ target, cli }) => {
+  // Cross builds leave several platform binaries in resources/; each installer
+  // must bundle only its own platform's CLI, next to the shared version file.
+  expect(load("dev", target).extraResources).toEqual([
+    { from: "resources/", to: "", filter: [cli, "opencode-cli.version"] },
   ])
 })
 
