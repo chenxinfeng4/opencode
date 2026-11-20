@@ -1,4 +1,5 @@
-import { createEffect, onCleanup } from "solid-js"
+import { onCleanup } from "solid-js"
+import { createKeyed } from "../sdk"
 import { highlightCode, languageForPath } from "@opencode/ui/context/code-highlight"
 
 const styles = `
@@ -44,13 +45,16 @@ export function CodeEditor(props: {
     sync()
   }
 
-  createEffect(() => {
-    void render(props.value)
-  })
-
-  onCleanup(() => {
-    token++
-  })
+  // Syncs the highlight layer with the editor value; each keyed run owns its in-flight render token.
+  createKeyed(
+    () => props.value,
+    (value) => {
+      onCleanup(() => {
+        token++
+      })
+      void render(value)
+    },
+  )
 
   return (
     <div data-component="code-editor" class={`relative min-h-0 ${props.class ?? ""}`}>

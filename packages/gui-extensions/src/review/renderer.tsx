@@ -28,8 +28,6 @@ const setup: Setup<typeof Review> = (ctx) => {
   const owner = getOwner()
   const sessions = ctx.sessions
   const layout = ctx.layout
-  const diff = ctx.stores.diff
-  const panel = ctx.stores.panel
 
   // Who shows a screen's changes: the review render, the file tree, and file tabs. Keyed by the session screen, which
   // stays while it routes another session, so a session switch keeps the demand.
