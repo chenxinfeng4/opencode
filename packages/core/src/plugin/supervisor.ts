@@ -141,11 +141,9 @@ export const layer = Layer.effectDiscard(
     let running = new Map<string, Plugin.Generation>()
     let outdated = new Set<string>()
     const updating = new Set<string>()
-    let generation = 0
     let observed = 0
 
     const activate = Effect.fn("PluginSupervisor.activate")(function* () {
-      const current = ++generation
       // Combine internal plugins with host-contributed plugins in boot order.
       // Instance-bound plugins come last: later activation can override earlier
       // container writes, so the instance's explicit choices win over globals.
@@ -187,20 +185,9 @@ export const layer = Layer.effectDiscard(
         ),
       )
       packages = targets
-      yield* Effect.forEach(
-        targets,
-        (target) => updates.check(target).pipe(Effect.map((available) => [target, available] as const)),
-        { concurrency: "unbounded" },
-      ).pipe(
-        Effect.flatMap((checked) => {
-          if (current !== generation) return Effect.void
-          const next = new Set(checked.flatMap(([target, available]) => (available ? [target] : [])))
-          if (next.size === outdated.size && [...next].every((target) => outdated.has(target))) return Effect.void
-          outdated = next
-          return apply(resolved)
-        }),
-        Effect.forkScoped({ startImmediately: true }),
-      )
+      // This fork ships offline: no background registry probes. Update status only
+      // changes when a user runs `opencode plugin check` / `plugin update`, which
+      // flow through PluginUpdate.Service and surface via `updates.changes()` below.
     })
     // Start source consumers before activation, without an extra merge/debounce boundary delaying them.
     // Each source owns its upstream subscriptions; the queue retains the latest observed request.
@@ -219,7 +206,6 @@ export const layer = Layer.effectDiscard(
     yield* watch(sources.changes())
     yield* watch(modules.changes())
     yield* watch(managed.changes())
-    yield* watch(Stream.fromEffectRepeat(Effect.sleep("24 hours")))
     yield* watch(bus.subscribe([Event.Updated, SdkPlugins.Updated]))
     yield* watch(
       updates.changes().pipe(

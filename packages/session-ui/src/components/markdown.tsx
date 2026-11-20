@@ -326,10 +326,6 @@ function markCodeLinks(root: HTMLDivElement) {
   }
 }
 
-const publicFaviconHost = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/
-
-const privateFaviconSuffix = /\.(?:alt|example|internal|invalid|local|localhost|onion|test|ts\.net)$/
-
 function markExternalLinkFavicons(root: HTMLDivElement) {
   root.querySelectorAll<HTMLAnchorElement>("a.external-link[href]").forEach((link) => {
     if (!link.textContent?.trim() || link.querySelector("img")) return
@@ -341,43 +337,15 @@ function markExternalLinkFavicons(root: HTMLDivElement) {
 
     if (url.hostname.toLowerCase() === "github.com") return
 
+    // No remote favicon lookup: offline deployments must not leak visited hosts
+    // to a third-party service, so the local globe glyph from the stylesheet is
+    // the only icon an external link gets.
     const favicon = document.createElement("span")
     favicon.className = "markdown-link-favicon"
     favicon.setAttribute("aria-hidden", "true")
-    const host = url.hostname.toLowerCase()
-
-    if (
-      publicFaviconHost.test(host) &&
-      !privateFaviconSuffix.test(host) &&
-      host !== "home.arpa" &&
-      !host.endsWith(".home.arpa")
-    ) {
-      const image = document.createElement("img")
-      image.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(url.host)}&sz=32`
-      image.alt = ""
-      image.setAttribute("data-markdown-favicon", "")
-      image.width = 14
-      image.height = 14
-      image.decoding = "async"
-      favicon.appendChild(image)
-    }
 
     link.insertBefore(favicon, link.firstChild)
   })
-}
-
-function setupExternalLinkFavicons(root: HTMLDivElement) {
-  const loaded = (event: Event) => {
-    const image = event.target
-
-    if (!(image instanceof HTMLImageElement) || !image.hasAttribute("data-markdown-favicon")) return
-
-    if (image.naturalWidth > 0) image.dataset.loaded = ""
-  }
-
-  root.addEventListener("load", loaded, true)
-
-  return () => root.removeEventListener("load", loaded, true)
 }
 
 // A path becomes a link once `localFileExists` says the file exists. A streaming block skips the check: its last code
@@ -711,7 +679,6 @@ export function Markdown(
 
   let copyCleanup: (() => void) | undefined
   let linkCleanup: (() => void) | undefined
-  let faviconCleanup: (() => void) | undefined
   let sessionLinkCleanup: (() => void) | undefined
   let readImage: ReadMarkdownImage | undefined
   let images: ReturnType<typeof createMarkdownImages> | undefined
@@ -771,9 +738,6 @@ export function Markdown(
 
     images?.update(container)
     previewImages(container)
-    container.querySelectorAll<HTMLImageElement>("img[data-markdown-favicon]").forEach((image) => {
-      if (image.complete && image.naturalWidth > 0) image.dataset.loaded = ""
-    })
     container
       .querySelectorAll<HTMLElement>('[data-slot="markdown-copy-button"]')
       .forEach((button) => setCopyState(button, labels, button.dataset.copied === "true"))
@@ -788,7 +752,6 @@ export function Markdown(
 
     if (!sessionLinkCleanup) sessionLinkCleanup = setupSessionLinks(container, () => markdown?.openSession)
 
-    if (!faviconCleanup) faviconCleanup = setupExternalLinkFavicons(container)
     container.toggleAttribute("data-local-links", !!markdown?.openLocalFile)
 
     if (result?.ready && result.text === local.text) container.dataset.markdownReady = ""
@@ -804,7 +767,6 @@ export function Markdown(
 
     if (sessionLinkCleanup) sessionLinkCleanup()
 
-    if (faviconCleanup) faviconCleanup()
     const container = root()
 
     if (container) disposeRenderedMarkdown(container)
