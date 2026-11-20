@@ -116,6 +116,8 @@ const pluginRuntimePlugin: BunPlugin = {
 const ripgrepTriples: Record<string, string> = {
   "opencode-linux-x64": "x86_64-unknown-linux-musl",
   "opencode-linux-x64-musl": "x86_64-unknown-linux-musl",
+  "opencode-linux-x64-baseline": "x86_64-unknown-linux-musl",
+  "opencode-linux-x64-baseline-musl": "x86_64-unknown-linux-musl",
   "opencode-linux-arm64": "aarch64-unknown-linux-gnu",
 }
 
