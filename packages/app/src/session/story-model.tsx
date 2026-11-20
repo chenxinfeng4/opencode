@@ -198,11 +198,7 @@ function SessionSurfaceState(props: SessionPreviewProps & { onReset: () => void 
       questionRequest: () => (state.request?.type === "question" ? state.request.value : undefined),
       websearch: {
         request: () => (state.request?.type === "websearch" ? state.request.value : undefined),
-        options: () => [
-          { value: "exa", label: "Exa" },
-          { value: "parallel", label: "Parallel" },
-          { value: "tavily", label: "Tavily" },
-        ],
+        options: () => [],
         selected: () => state.searchProvider,
         specific: () => false,
         loading: () => false,

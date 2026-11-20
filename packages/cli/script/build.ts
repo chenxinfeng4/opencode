@@ -111,12 +111,37 @@ const pluginRuntimePlugin: BunPlugin = {
   },
 }
 
+// Vendored ripgrep binaries live in packages/core/vendor (see `bun run vendor`);
+// musl builds are static and also run on glibc, gnu builds only on glibc.
+const ripgrepTriples: Record<string, string> = {
+  "opencode-linux-x64": "x86_64-unknown-linux-musl",
+  "opencode-linux-x64-musl": "x86_64-unknown-linux-musl",
+  "opencode-linux-arm64": "aarch64-unknown-linux-gnu",
+}
+
 for (const item of targets) {
   const opencodePty = await resolveOpencodePty({
     platform: item.os,
     arch: item.arch,
     ...(item.os === "linux" ? { libc: item.abi ?? "glibc" } : {}),
   })
+  const ripgrepTriple = ripgrepTriples[targetName(item)]
+  let ripgrepSource = ripgrepTriple
+    ? path.resolve(dir, "..", "core", "vendor", "ripgrep", ripgrepTriple, "rg")
+    : undefined
+  if (ripgrepSource && !(await Bun.file(ripgrepSource).exists())) ripgrepSource = undefined
+  const ripgrepPlugin: BunPlugin = {
+    name: "opencode-ripgrep",
+    setup(build) {
+      build.onLoad({ filter: /ripgrep[/\\]vendor-binding\.ts$/ }, () => ({
+        loader: "js",
+        contents: ripgrepSource
+          ? `import file from ${JSON.stringify(ripgrepSource)} with { type: "file" }
+export default { path: file }`
+          : "export default undefined",
+      }))
+    },
+  }
   const opencodePtyPlugin: BunPlugin = {
     name: "opencode-pty-binary",
     setup(build) {
@@ -161,6 +186,7 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
       solidPlugin,
       parcelWatcherPlugin,
       opencodePtyPlugin,
+      ripgrepPlugin,
       pluginRuntimePlugin,
       simulationGraphPlugin,
     ],

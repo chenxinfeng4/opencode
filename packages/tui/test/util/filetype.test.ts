@@ -10,10 +10,12 @@ describe("util.filetype", () => {
     expect(filetype("README.unknown")).toBeUndefined()
   })
 
-  test("maps shell filenames to the registered bash parser", () => {
+  test("maps shell filenames to bash; no remote parsers are registered", () => {
     const languages = ["script.sh", "script.bash", "script.zsh", "script.ksh"].map(filetype)
     expect(languages).toEqual(["bash", "bash", "bash", "bash"])
-    expect(parsers.parsers.some((parser) => languages.every((language) => language === parser.filetype))).toBe(true)
+    // Remote tree-sitter downloads were removed on purpose: the TUI highlights
+    // only the opentui built-ins and fetches nothing at render time.
+    expect(parsers.parsers).toEqual([])
   })
 
   test("uses none for missing filenames", () => {

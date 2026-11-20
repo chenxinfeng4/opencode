@@ -77,35 +77,28 @@ export type Snapshot = {
 
 /**
  * Domestic (China) provider allowlist applied to the bundled models.dev snapshot.
- * Providers outside this set are dropped before they reach the provider
- * registry; user-configured providers bypass this filter entirely.
+ * Providers outside this set are dropped before they reach the provider registry;
+ * user-configured providers bypass this filter entirely. Vendors with separate
+ * international endpoints keep only their mainland entry.
  * Extend this set to re-admit a provider.
  */
 const DOMESTIC_PROVIDER_IDS = new Set<string>([
-  // Alibaba Cloud / Qwen
-  "alibaba",
+  // Alibaba Cloud / Qwen — mainland endpoints only; the dashscope-intl and
+  // ap-southeast-1 twins are dropped.
   "alibaba-cn",
-  "alibaba-coding-plan",
   "alibaba-coding-plan-cn",
-  "alibaba-token-plan",
   "alibaba-token-plan-cn",
   "modelscope",
   // DeepSeek
   "deepseek",
-  // Moonshot AI / Kimi
-  "moonshotai",
+  // Moonshot AI / Kimi — api.moonshot.cn and kimi.com; the .ai global twins are dropped.
   "moonshotai-cn",
   "kimi-code-plan-cn",
-  "kimi-code-plan-global",
-  // Zhipu / Z.AI (GLM)
-  "zai",
-  "zai-coding-plan",
+  // Zhipu (GLM) — open.bigmodel.cn; the international Z.AI entries are dropped.
   "zhipuai",
   "zhipuai-coding-plan",
-  // MiniMax
-  "minimax",
+  // MiniMax — minimax.cn; the minimax.io twins are dropped.
   "minimax-cn",
-  "minimax-coding-plan",
   "minimax-cn-coding-plan",
   // ByteDance Volcengine (Doubao)
   "volcengine",
@@ -114,34 +107,25 @@ const DOMESTIC_PROVIDER_IDS = new Set<string>([
   "tencent-coding-plan",
   "tencent-token-plan",
   "tencent-tokenhub",
-  // StepFun
+  // StepFun — api.stepfun.com; the api.stepfun.ai global twins are dropped.
   "stepfun",
-  "stepfun-ai",
-  "stepfun-ai-step-plan",
   "stepfun-step-plan",
   // SenseTime
   "sensenova",
-  // SiliconFlow
-  "siliconflow",
+  // SiliconFlow — api.siliconflow.cn; the .com global twin is dropped.
   "siliconflow-cn",
-  // Xiaomi (MiMo)
+  // Xiaomi (MiMo) — mainland plan only; the Europe/Singapore regions are dropped.
   "xiaomi",
-  "xiaomi-token-plan-ams",
   "xiaomi-token-plan-cn",
-  "xiaomi-token-plan-sgp",
   // Meituan LongCat
   "longcat",
   // iFlow
   "iflowcn",
-  // Domestic gateways and platforms
-  "302ai",
-  "aihubmix",
-  "agentrouter",
+  // Domestic gateways and platforms. 302.ai, AgentRouter, AIHubMix, JieKou and
+  // QiHang are excluded: their API endpoints resolve outside mainland China.
   "bailing",
   "drun",
-  "jiekou",
   "kuae-cloud-coding-plan",
-  "qihang-ai",
   "qiniu-ai",
   "scnet-token-plan",
 ])

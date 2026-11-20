@@ -37,3 +37,6 @@ logs/
 *.bun-build
 tsconfig.tsbuildinfo
 /artifacts/
+
+# Vendored offline resources (download with `bun run vendor`)
+/packages/core/vendor/
