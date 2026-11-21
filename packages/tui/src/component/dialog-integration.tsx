@@ -54,6 +54,24 @@ const CANCELLED = Symbol("cancelled")
 const CUSTOM = Symbol("custom")
 const OPEN = Symbol("open")
 const SUBMIT = Symbol("submit")
+const CUSTOM_PROVIDER_OPTION = "__opencode_custom_provider__"
+const CUSTOM_PROVIDER_ID = /^[a-z0-9][a-z0-9_-]*$/
+
+type CustomProviderDraft = {
+  providerID?: string
+  name?: string
+  baseURL?: string
+  apiKey?: string
+  models?: string[]
+}
+
+type CustomProviderDeps = {
+  mode: "create" | "edit"
+  location: LocationRef
+  data: ReturnType<typeof useData>
+  dialog: ReturnType<typeof useDialog>
+  onConnected?: OnIntegrationConnected
+}
 
 export function integrationOptions(list: IntegrationInfo[]) {
   return list.toSorted(
@@ -99,6 +117,16 @@ export function DialogIntegration(
       (integration) => props.integrationID === undefined || integration.id === props.integrationID,
     ),
   )
+  // Integrations backed by a `provider` entry in any config document open the
+  // custom provider editor instead of the credential connect flows.
+  const configProviders = createMemo(() => {
+    const ids = new Set<string>()
+    for (const entry of data.location.config.list(location) ?? []) {
+      if (entry.type !== "document") continue
+      for (const id of Object.keys(entry.info.providers ?? {})) ids.add(id)
+    }
+    return ids
+  })
 
   createEffect(() => {
     if (!props.autoConnect) return
@@ -113,31 +141,46 @@ export function DialogIntegration(
   })
 
   const options = createMemo(() => {
-    return integrations().map((integration) => {
-      const methods = connectMethods(integration)
-      const credentials = credentialConnections(integration)
-      let category = "Services"
-      if (integration.id in INTEGRATION_PRIORITY) category = "Popular"
-      if (integration.metadata?.source === "mcp") category = "MCP"
-      const status = integration.connections[0]?.status
-      return {
-        title: integration.name,
-        value: integration.id,
-        description: methods.length === 0 ? "Environment only" : undefined,
-        footer: status ? "Sign in required →" : connectionSummary(integration) || undefined,
-        footerColor: status ? theme.text.feedback.warning.base : undefined,
-        category,
-        disabled: methods.length === 0 && credentials.length === 0,
-        gutter:
-          integration.connections.length > 0 && !status
-            ? () => <text fg={theme.text.feedback.success.base}>✓</text>
-            : undefined,
-        onSelect: () => {
-          if (credentials.length) return manageConnections(integration, methods, location, dialog, props.onConnected)
-          return selectMethod(integration, methods, location, dialog, props.onConnected)
-        },
-      }
-    })
+    return [
+      ...integrations().map((integration) => {
+        const methods = connectMethods(integration)
+        const credentials = credentialConnections(integration)
+        let category = "Services"
+        if (integration.id in INTEGRATION_PRIORITY) category = "Popular"
+        if (integration.metadata?.source === "mcp") category = "MCP"
+        const status = integration.connections[0]?.status
+        return {
+          title: integration.name,
+          value: integration.id,
+          description: methods.length === 0 ? "Environment only" : undefined,
+          footer: status ? "Sign in required →" : connectionSummary(integration) || undefined,
+          footerColor: status ? theme.text.feedback.warning.base : undefined,
+          category,
+          disabled: methods.length === 0 && credentials.length === 0,
+          gutter:
+            integration.connections.length > 0 && !status
+              ? () => <text fg={theme.text.feedback.success.base}>✓</text>
+              : undefined,
+          onSelect: () => {
+            if (configProviders().has(integration.id))
+              return editCustomProvider(
+                { mode: "edit", location, data, dialog, onConnected: props.onConnected },
+                integration,
+              )
+            if (credentials.length)
+              return manageConnections(integration, methods, location, dialog, props.onConnected)
+            return selectMethod(integration, methods, location, dialog, props.onConnected)
+          },
+        }
+      }),
+      {
+        title: "自定义 Custom provider",
+        value: CUSTOM_PROVIDER_OPTION,
+        category: "Custom",
+        description: "OpenAI-compatible endpoint with your own base URL and models",
+        onSelect: () => customProviderID({ mode: "create", location, data, dialog, onConnected: props.onConnected }, {}),
+      },
+    ]
   })
 
   return (
@@ -156,6 +199,188 @@ export function DialogIntegration(
       }
     />
   )
+}
+
+// Custom provider wizard. Creates or edits an OpenAI-compatible provider in
+// opencode.json through the config.update API. Each answer advances to the next
+// prompt; the submit step writes the config and polls until the server has
+// reloaded the provider.
+function customProviderID(deps: CustomProviderDeps, draft: CustomProviderDraft, error?: string) {
+  deps.dialog.replace(() => {
+    const theme = useTheme().surface("dialog")
+    return (
+      <DialogPrompt
+        title="Custom provider ID"
+        placeholder="my-provider"
+        value={draft.providerID}
+        onConfirm={(value) => {
+          const providerID = value.trim()
+          if (!CUSTOM_PROVIDER_ID.test(providerID))
+            return customProviderID(
+              deps,
+              draft,
+              "Provider ids must start with a lowercase letter or number and only use lowercase letters, numbers, hyphens, and underscores",
+            )
+          customProviderName(deps, { ...draft, providerID })
+        }}
+        description={() => (
+          <box gap={1}>
+            <Show when={error}>
+              <text fg={theme.text.feedback.error.base}>{error}</text>
+            </Show>
+            <text fg={theme.text.muted}>
+              Lowercase letters, numbers, hyphens, and underscores. An existing provider with the same id is updated.
+            </text>
+          </box>
+        )}
+      />
+    )
+  })
+}
+
+function customProviderName(deps: CustomProviderDeps, draft: CustomProviderDraft & { providerID: string }) {
+  deps.dialog.replace(() => (
+    <DialogPrompt
+      title="Display name"
+      placeholder={draft.providerID}
+      value={draft.name}
+      onConfirm={(value) => {
+        customProviderBaseURL(deps, { ...draft, name: value.trim() || draft.providerID })
+      }}
+    />
+  ))
+}
+
+function customProviderBaseURL(deps: CustomProviderDeps, draft: CustomProviderDraft & { providerID: string; name: string }, error?: string) {
+  deps.dialog.replace(() => {
+    const theme = useTheme().surface("dialog")
+    return (
+      <DialogPrompt
+        title="Base URL"
+        placeholder="https://example.com/v1"
+        value={draft.baseURL}
+        onConfirm={(value) => {
+          const baseURL = value.trim()
+          if (!/^https?:\/\//.test(baseURL))
+            return customProviderBaseURL(deps, draft, "Base URL must start with http:// or https://")
+          customProviderApiKey(deps, { ...draft, baseURL })
+        }}
+        description={() => (
+          <Show when={error}>
+            <text fg={theme.text.feedback.error.base}>{error}</text>
+          </Show>
+        )}
+      />
+    )
+  })
+}
+
+function customProviderApiKey(deps: CustomProviderDeps, draft: CustomProviderDraft & { providerID: string; name: string; baseURL: string }) {
+  deps.dialog.replace(() => {
+    const theme = useTheme().surface("dialog")
+    return (
+      <DialogPrompt
+        title="API key"
+        placeholder={draft.apiKey !== undefined ? "Leave empty to keep the current key" : "Optional"}
+        value={draft.apiKey}
+        onConfirm={(value) => {
+          const apiKey = value.trim()
+          customProviderModels(deps, { ...draft, apiKey: apiKey || draft.apiKey })
+        }}
+        description={() => <text fg={theme.text.muted}>Stored as plain text in opencode.json.</text>}
+      />
+    )
+  })
+}
+
+function customProviderModels(deps: CustomProviderDeps, draft: CustomProviderDraft & { providerID: string; name: string; baseURL: string }, error?: string) {
+  deps.dialog.replace(() => {
+    const theme = useTheme().surface("dialog")
+    return (
+      <DialogPrompt
+        title="Model IDs"
+        placeholder="deepseek-chat, glm-4.7"
+        value={draft.models?.join(", ")}
+        onConfirm={(value) => {
+          const models = [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))]
+          if (deps.mode === "create" && models.length === 0)
+            return customProviderModels(deps, draft, "Enter at least one model id, separated by commas")
+          customProviderSubmit(deps, { ...draft, models })
+        }}
+        description={() => (
+          <box gap={1}>
+            <Show when={error}>
+              <text fg={theme.text.feedback.error.base}>{error}</text>
+            </Show>
+            <text fg={theme.text.muted}>Comma-separated model ids. Leave empty to keep inherited models.</text>
+          </box>
+        )}
+      />
+    )
+  })
+}
+
+function customProviderSubmit(
+  deps: CustomProviderDeps,
+  draft: CustomProviderDraft & { providerID: string; name: string; baseURL: string; models: string[] },
+) {
+  deps.dialog.replace(() => {
+    const client = useClient()
+    const data = useData()
+    const dialog = useDialog()
+    const toast = useToast()
+    void client.api.config
+      .update({
+        provider: {
+          providerID: draft.providerID,
+          name: draft.name,
+          baseURL: draft.baseURL,
+          ...(draft.apiKey !== undefined ? { apiKey: draft.apiKey } : {}),
+          models: draft.models.map((id) => ({ id })),
+        },
+      })
+      .then(async () => {
+        // The server reloads providers asynchronously after the config write;
+        // poll briefly so the model picker opens with the provider present.
+        for (let attempt = 0; attempt < 10; attempt++) {
+          data.location.integration.invalidate(deps.location)
+          data.location.model.invalidate(deps.location)
+          data.location.provider.invalidate(deps.location)
+          await Promise.all([
+            data.location.integration.sync(deps.location),
+            data.location.model.sync(deps.location),
+            data.location.provider.sync(deps.location),
+          ])
+          if ((data.location.provider.list(deps.location) ?? []).some((item) => item.id === draft.providerID)) break
+          await Bun.sleep(300)
+        }
+        toast.show({ variant: "success", message: `Saved provider ${draft.name}` })
+        if (deps.onConnected) deps.onConnected(draft.providerID)
+        else dialog.clear()
+      })
+      .catch((cause) => {
+        toast.show({ variant: "error", message: errorMessage(cause) })
+        dialog.clear()
+      })
+    return <OAuthView title="Custom provider" message="Saving…" />
+  })
+}
+
+// Opens the custom provider wizard prefilled from the highest-priority config
+// document that defines the provider.
+function editCustomProvider(deps: CustomProviderDeps, integration: IntegrationInfo) {
+  const entry = deps.data.location.config
+    .list(deps.location)
+    ?.findLast((item) => item.type === "document" && item.info.providers?.[integration.id] !== undefined)
+  const config = entry?.type === "document" ? entry.info.providers?.[integration.id] : undefined
+  const settings = config?.settings
+  customProviderName(deps, {
+    providerID: integration.id,
+    name: config?.name ?? integration.name,
+    baseURL: typeof settings?.baseURL === "string" ? settings.baseURL : undefined,
+    apiKey: typeof settings?.apiKey === "string" ? settings.apiKey : undefined,
+    models: Object.keys(config?.models ?? {}),
+  })
 }
 
 function manageConnections(

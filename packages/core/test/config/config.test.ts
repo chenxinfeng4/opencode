@@ -1910,4 +1910,94 @@ describe("Config", () => {
       }),
     ),
   )
+
+  it.live("patches provider entries in the global config document", () =>
+    Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
+      Effect.flatMap((tmp) => {
+        const global = path.join(tmp.path, "global")
+        const project = path.join(global, "project")
+        const file = path.join(global, "opencode.json")
+        return Effect.promise(async () => {
+          await fs.mkdir(project, { recursive: true })
+          await fs.writeFile(
+            file,
+            JSON.stringify({
+              shell: "bash",
+              provider: {
+                xinqiao: {
+                  name: "xinqiao",
+                  npm: "@ai-sdk/openai-compatible",
+                  options: { baseURL: "http://192.168.1.10:5050/v1", apiKey: "sk-old" },
+                  models: { "glm-5": { name: "glm-5", limit: { context: 128000 } } },
+                },
+              },
+            }),
+          )
+        }).pipe(
+          Effect.andThen(
+            Effect.gen(function* () {
+              const config = yield* Config.Service
+              // Reloads are debounced in a background fiber, so poll for the
+              // reloaded entry instead of reading the registry immediately.
+              const reloaded = (id: string) =>
+                Effect.gen(function* () {
+                  for (let attempt = 0; attempt < 20; attempt++) {
+                    const providers = Config.latest(yield* config.entries(), "providers")
+                    if (providers?.[id] !== undefined) return providers
+                    yield* Effect.sleep("50 millis")
+                  }
+                  throw new Error(`provider ${id} did not reload`)
+                })
+
+              // Creating a provider leaves other settings untouched.
+              yield* config.update!({
+                provider: {
+                  providerID: "backup",
+                  name: "backup",
+                  baseURL: "http://192.168.1.20:5050/v1",
+                  apiKey: "sk-new",
+                  models: [{ id: "glm-5" }],
+                },
+              })
+              const raw = JSON.parse(yield* Effect.promise(() => fs.readFile(file, "utf8")))
+              expect(raw.shell).toBe("bash")
+              expect(raw.provider.backup).toEqual({
+                name: "backup",
+                options: { baseURL: "http://192.168.1.20:5050/v1", apiKey: "sk-new" },
+                models: { "glm-5": { name: "glm-5" } },
+              })
+              const providers = yield* reloaded("backup")
+              expect(providers.backup?.settings?.baseURL).toBe("http://192.168.1.20:5050/v1")
+
+              // Editing preserves unknown fields on the entry and its models.
+              yield* config.update!({
+                provider: {
+                  providerID: "xinqiao",
+                  baseURL: "http://192.168.1.11:5050/v1",
+                  models: [{ id: "glm-5", name: "GLM 5" }, { id: "glm-5-air" }],
+                },
+              })
+              const edited = JSON.parse(yield* Effect.promise(() => fs.readFile(file, "utf8")))
+              expect(edited.provider.xinqiao).toEqual({
+                name: "xinqiao",
+                npm: "@ai-sdk/openai-compatible",
+                options: { baseURL: "http://192.168.1.11:5050/v1", apiKey: "sk-old" },
+                models: {
+                  "glm-5": { name: "GLM 5", limit: { context: 128000 } },
+                  "glm-5-air": { name: "glm-5-air" },
+                },
+              })
+
+              // Removing deletes only the targeted entry; unknown ids are a no-op.
+              yield* config.update!({ provider: { providerID: "backup", remove: true } })
+              yield* config.update!({ provider: { providerID: "missing", remove: true } })
+              const removed = JSON.parse(yield* Effect.promise(() => fs.readFile(file, "utf8")))
+              expect(removed.provider.backup).toBeUndefined()
+              expect(removed.provider.xinqiao).toBeDefined()
+            }).pipe(Effect.provide(testLayer(project, global))),
+          ),
+        )
+      }),
+    ),
+  )
 })

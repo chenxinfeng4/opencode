@@ -5,7 +5,7 @@ import path from "path"
 import { isDeepStrictEqual } from "node:util"
 import { applyEdits, modify, type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, FiberMap, Layer, Option, PubSub, Ref, Schema, Semaphore, Stream } from "effect"
-import { Directory, Document, Info, type Patch, type Entry, Event } from "@opencode/schema/config"
+import { Directory, Document, Info, type Patch, type PatchProvider, type Entry, Event } from "@opencode/schema/config"
 import { Credential } from "./credential.js"
 import { Bus } from "./bus.js"
 import { Watcher } from "./filesystem/watcher.js"
@@ -385,13 +385,7 @@ export const layer = (options?: Options) =>
             (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "opencode.jsonc")
           const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
           const updated = yield* Effect.try({
-            try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
-                  formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
-              ),
+            try: () => applyPatch(text, patch),
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })
           yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)
@@ -433,3 +427,56 @@ export function configured(options?: Options) {
 }
 
 export const node = configured()
+
+const jsonFormat = { formattingOptions: { tabSize: 2, insertSpaces: true } }
+
+// Applies a config patch to the raw global document. Edits run sequentially so
+// each jsonc modification sees the text produced by the previous one.
+function applyPatch(text: string, patch: Patch) {
+  let current = text
+  if ("shell" in patch) {
+    current = applyEdits(current, modify(current, ["shell"], patch.shell ?? undefined, jsonFormat))
+  }
+  if (patch.provider !== undefined) current = applyProviderPatch(current, patch.provider)
+  return current
+}
+
+// Provider entries are edited in the raw v1 file shape (`options.baseURL`) so
+// hand-written and wizard-written entries stay consistent; config normalization
+// migrates `options` to the current `settings` shape on reload. `remove` with no
+// matching entry is a no-op.
+function applyProviderPatch(text: string, patch: PatchProvider) {
+  const existing = readProviderEntry(parse(text), patch.providerID)
+  if (patch.remove === true) {
+    if (existing === undefined) return text
+    return applyEdits(text, modify(text, ["provider", patch.providerID], undefined, jsonFormat))
+  }
+  const entry = existing ?? {}
+  if (patch.name !== undefined) entry.name = patch.name
+  if (patch.baseURL !== undefined || patch.apiKey !== undefined) {
+    const options = isRecord(entry.options) ? { ...entry.options } : {}
+    if (patch.baseURL !== undefined) options.baseURL = patch.baseURL
+    if (patch.apiKey !== undefined) options.apiKey = patch.apiKey
+    entry.options = options
+  }
+  if (patch.models !== undefined) {
+    entry.models = Object.fromEntries(
+      patch.models.map((model) => {
+        const current = isRecord(entry.models) ? entry.models[model.id] : undefined
+        const base = isRecord(current) ? { ...current } : {}
+        return [model.id, { ...base, name: model.name ?? base.name ?? model.id }]
+      }),
+    )
+  }
+  return applyEdits(text, modify(text, ["provider", patch.providerID], entry, jsonFormat))
+}
+
+function readProviderEntry(parsed: unknown, providerID: string) {
+  if (!isRecord(parsed) || !isRecord(parsed.provider)) return undefined
+  const entry = parsed.provider[providerID]
+  return isRecord(entry) ? { ...entry } : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}

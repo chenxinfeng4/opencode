@@ -113,8 +113,29 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   experimental: ConfigExperimental.Info.pipe(optional),
 }) {}
 
+export const PatchProviderModel = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String.pipe(optional),
+}).annotate({ identifier: "Config.Patch.ProviderModel" })
+export interface PatchProviderModel extends Schema.Schema.Type<typeof PatchProviderModel> {}
+
+export const PatchProvider = Schema.Struct({
+  providerID: Schema.String,
+  name: Schema.String.pipe(optional),
+  baseURL: Schema.String.pipe(optional),
+  apiKey: Schema.String.pipe(optional),
+  models: Schema.Array(PatchProviderModel).pipe(optional),
+  remove: Schema.Boolean.pipe(optional),
+}).annotate({ identifier: "Config.Patch.Provider" })
+export interface PatchProvider extends Schema.Schema.Type<typeof PatchProvider> {}
+
 export const Patch = Schema.Struct({
-  shell: Schema.NullOr(Schema.String),
+  shell: Schema.NullOr(Schema.String).pipe(optional).annotate({
+    description: "Replace the shell setting; null removes it. Absent leaves the current value untouched",
+  }),
+  provider: PatchProvider.pipe(optional).annotate({
+    description: "Create, update, or remove one provider entry in the global configuration document",
+  }),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 
