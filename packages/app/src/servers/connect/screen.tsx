@@ -8,11 +8,10 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
 import { useCheckServerHealth } from "@/runtime/server/health"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
-import { bareServerAddress, serverAddress, type Pairing } from "./pairing"
+import { serverAddress, type Pairing } from "./pairing"
 import { useRedeemPairing } from "./redeem"
 import { isMixedContent } from "./browser"
 import { cameraHint, createCameraAvailability } from "./camera"
-import { ConnectMethodSwitch, type ConnectMethod } from "./method"
 import "./screen.css"
 
 const PairingScanner = lazy(() => import("./scanner").then((module) => ({ default: module.PairingScanner })))
@@ -26,14 +25,14 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
   const camera = createCameraAvailability()
 
   const [state, setState] = createStore<{
-    method: ConnectMethod
+    pairing: boolean
     link: string
     url: string
     password: string
     error: string
     scanning: boolean
   }>({
-    method: "link",
+    pairing: false,
     link: "",
     url: props.url ?? "",
     password: "",
@@ -75,40 +74,31 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
     )
 
   const request = useMutation(() => ({
-    mutationFn: async () => {
-      if (state.method === "link") {
+    mutationFn: async (intent: "password" | "pairing") => {
+      if (intent === "pairing") {
         const redeemed = await redeem(state.link)
 
         if (redeemed && "error" in redeemed) return void setState("error", redeemed.error)
 
         if (redeemed) return connect(await target(redeemed.pairing))
-        // A server address typed here belongs to the password form.
-        const address = bareServerAddress(state.link)
-
-        if (address) return void setState({ method: "password", url: address, link: "", error: "" })
 
         return void setState("error", language.t("server.connect.link.invalid"))
       }
 
-      // A pairing link pasted into the address field still pairs.
-      const redeemed = await redeem(state.url)
-
-      if (redeemed && "error" in redeemed) return void setState("error", redeemed.error)
-
-      if (redeemed) return connect(await target(redeemed.pairing))
-      const url = serverAddress(state.url)
+      // The page is served by the server it signs into, so the address is known and only the password is asked.
+      const url = props.url ? serverAddress(props.url) : serverAddress(state.url)
 
       if (!url) return void setState("error", language.t("server.connect.address.invalid"))
 
       await connect({ url, password: state.password || undefined })
     },
-    onError: () => setState("error", connectionError(state.method === "link" ? state.link : state.url)),
+    onError: (_error, intent) => setState("error", connectionError(intent === "pairing" ? state.link : state.url)),
   }))
 
-  const submit = () => {
+  const submit = (intent: "password" | "pairing") => {
     if (request.isPending) return
     setState("error", "")
-    request.mutate()
+    request.mutate(intent)
   }
 
   return (
@@ -120,7 +110,13 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
         <header>
           <h1 id="server-connect-title">{language.t("server.connect.title")}</h1>
           <p>
-            {language.t(state.method === "link" ? "server.connect.description.pairing" : "server.connect.description")}
+            {language.t(
+              state.pairing
+                ? "server.connect.description.pairing"
+                : props.url
+                  ? "server.connect.description.self"
+                  : "server.connect.description",
+            )}
           </p>
         </header>
         <Show
@@ -134,63 +130,49 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
                   void camera.refetch()
                 }}
                 onScan={(link) => {
-                  setState({ method: "link", link, error: "", scanning: false })
-                  request.mutate()
+                  setState({ pairing: true, link, error: "", scanning: false })
+                  submit("pairing")
                 }}
               />
             </Suspense>
           }
         >
+          <Show when={state.error}>
+            <p id="server-connect-error" class="server-connect-error" role="alert">
+              {state.error}
+            </p>
+          </Show>
           <form
             onSubmit={(event) => {
               event.preventDefault()
-              submit()
+              submit("password")
             }}
           >
             <Show
-              when={state.method === "password"}
+              when={props.url}
               fallback={
                 <div class="server-connect-field">
-                  <label for="server-connect-link">{language.t("server.connect.link")}</label>
+                  <label for="server-connect-url">{language.t("dialog.server.add.url")}</label>
                   <TextInput
-                    id="server-connect-link"
-                    name="link"
+                    id="server-connect-url"
+                    name="server"
                     dir="ltr"
                     type="text"
                     inputMode="url"
+                    autocomplete="url"
                     autocapitalize="off"
                     spellcheck={false}
                     required
                     appearance="large"
-                    placeholder={language.t("server.connect.link.placeholder")}
-                    value={state.link}
+                    placeholder={language.t("dialog.server.add.placeholder")}
+                    value={state.url}
                     disabled={request.isPending}
                     aria-describedby={state.error ? "server-connect-error" : undefined}
-                    onInput={(event) => setState({ link: event.currentTarget.value, error: "" })}
+                    onInput={(event) => setState({ url: event.currentTarget.value, error: "" })}
                   />
                 </div>
               }
             >
-              <div class="server-connect-field">
-                <label for="server-connect-url">{language.t("dialog.server.add.url")}</label>
-                <TextInput
-                  id="server-connect-url"
-                  name="server"
-                  dir="ltr"
-                  type="text"
-                  inputMode="url"
-                  autocomplete="url"
-                  autocapitalize="off"
-                  spellcheck={false}
-                  required
-                  appearance="large"
-                  placeholder={language.t("dialog.server.add.placeholder")}
-                  value={state.url}
-                  disabled={request.isPending}
-                  aria-describedby={state.error ? "server-connect-error" : undefined}
-                  onInput={(event) => setState({ url: event.currentTarget.value, error: "" })}
-                />
-              </div>
               <div class="server-connect-field">
                 <label for="server-connect-password">{language.t("dialog.server.add.password")}</label>
                 <TextInput
@@ -209,46 +191,85 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
                 </p>
               </div>
             </Show>
-            <Show when={state.error}>
-              <p id="server-connect-error" class="server-connect-error" role="alert">
-                {state.error}
-              </p>
-            </Show>
             <Button
               type="submit"
               variant="contrast"
               size="large"
-              disabled={request.isPending || !(state.method === "link" ? state.link : state.url).trim()}
+              disabled={request.isPending || (!props.url && !state.url.trim())}
             >
               {language.t(request.isPending ? "dialog.server.add.checking" : "server.connect.button")}
             </Button>
           </form>
-          <Show when={state.method === "link" && platform.platform === "web"}>
-            <Show
-              when={camera.available.latest || camera.available.loading}
-              fallback={<p>{language.t(cameraHint())}</p>}
+          <div class="server-connect-pairing">
+            <button
+              type="button"
+              class="server-connect-pairing-toggle"
+              aria-expanded={state.pairing}
+              onClick={() => setState({ pairing: !state.pairing, error: "" })}
             >
-              <Button
-                variant="neutral"
-                size="large"
-                disabled={request.isPending || !camera.available.latest}
-                onClick={() => setState("scanning", true)}
+              <svg class="server-connect-pairing-chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M6 4l4 4-4 4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              {language.t("server.connect.pair.toggle")}
+            </button>
+            <Show when={state.pairing}>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  submit("pairing")
+                }}
               >
-                {language.t("server.connect.scan")}
-              </Button>
+                <div class="server-connect-field">
+                  <label for="server-connect-link">{language.t("server.connect.link")}</label>
+                  <TextInput
+                    id="server-connect-link"
+                    name="link"
+                    dir="ltr"
+                    type="text"
+                    inputMode="url"
+                    autocapitalize="off"
+                    spellcheck={false}
+                    appearance="large"
+                    placeholder={language.t("server.connect.link.placeholder")}
+                    value={state.link}
+                    disabled={request.isPending}
+                    aria-describedby={state.error ? "server-connect-error" : undefined}
+                    onInput={(event) => setState({ link: event.currentTarget.value, error: "" })}
+                  />
+                </div>
+                <Button type="submit" variant="contrast" size="large" disabled={request.isPending || !state.link.trim()}>
+                  {language.t(request.isPending ? "dialog.server.add.checking" : "server.connect.button")}
+                </Button>
+                <Show when={platform.platform === "web"}>
+                  <Show
+                    when={camera.available.latest || camera.available.loading}
+                    fallback={<p>{language.t(cameraHint())}</p>}
+                  >
+                    <Button
+                      type="button"
+                      variant="neutral"
+                      size="large"
+                      disabled={request.isPending || !camera.available.latest}
+                      onClick={() => setState("scanning", true)}
+                    >
+                      {language.t("server.connect.scan")}
+                    </Button>
+                  </Show>
+                </Show>
+                <footer>
+                  <p>{language.t("server.connect.pair.link")}</p>
+                  <code dir="ltr">opencode pair</code>
+                </footer>
+              </form>
             </Show>
-          </Show>
-          <ConnectMethodSwitch
-            method={state.method}
-            disabled={request.isPending}
-            onChange={(method) => setState({ method, error: "" })}
-          />
-          <Show when={state.method === "link"}>
-            <footer>
-              <p>{language.t("server.connect.pair.link")}</p>
-              <code dir="ltr">opencode pair</code>
-            </footer>
-          </Show>
+          </div>
         </Show>
       </div>
     </main>

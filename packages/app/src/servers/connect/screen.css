@@ -74,10 +74,39 @@
     width: 100%;
   }
 
-  /* The method switch is a quiet inline link, not a full-width action. */
-  [data-component="server-connect-method"] button {
-    min-height: 28px;
+  /* The pairing disclosure is a quiet toggle, not a full-width action. */
+  .server-connect-pairing {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-block-start: 16px;
+    border-block-start: 1px solid var(--v2-border-border-base);
+  }
+
+  .server-connect-pairing-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     width: auto;
+    min-height: 28px;
+    margin-inline: auto;
+    font-size: 13px;
+    line-height: var(--line-height-compact);
+    color: var(--v2-text-text-faint);
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .server-connect-pairing-chevron {
+    width: 14px;
+    height: 14px;
+    transition: rotate 150ms ease;
+  }
+
+  .server-connect-pairing-toggle[aria-expanded="true"] .server-connect-pairing-chevron {
+    rotate: 90deg;
   }
 
   .server-connect-hint {

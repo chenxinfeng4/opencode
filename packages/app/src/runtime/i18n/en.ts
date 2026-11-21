@@ -323,6 +323,7 @@ export const dict = {
   "server.connect.title": "Connect to a server",
   "server.connect.description": "Enter your server address and password to get started.",
   "server.connect.description.pairing": "Paste the pairing link from the server, or scan its QR code.",
+  "server.connect.description.self": "Enter your server password to continue.",
   "server.connect.link": "Pairing link",
   "server.connect.link.placeholder": "http://192.168.1.2:4096/auth/connect/…",
   "server.connect.link.invalid":
@@ -332,6 +333,7 @@ export const dict = {
   "server.connect.password.hint": "To see it, run opencode service get password on the server's computer.",
   "server.connect.link.prompt": "Have a pairing link?",
   "server.connect.link.use": "Use pairing link",
+  "server.connect.pair.toggle": "Sign in with a pairing link",
   "server.connect.button": "Connect",
   "server.connect.address.invalid": "Enter a valid HTTP or HTTPS server address.",
   "server.connect.failed": "Could not connect. Check the server address and password, then try again.",
