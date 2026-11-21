@@ -167,7 +167,6 @@ function manageConnections(
 ) {
   dialog.replace(() => {
     const data = useData()
-    const client = useClient()
     const toast = useToast()
     const theme = useTheme().surface("dialog")
     const shortcuts = Keymap.useShortcuts()
@@ -216,7 +215,6 @@ function manageConnections(
                   if (connection.status)
                     return selectMethod(current() ?? integration, methods, location, dialog, onConnected)
                   if (credentialConnections(current() ?? integration)[0]?.id === connection.id) return
-                  void client.api.credential.activate({ credentialID: connection.id }).catch(toast.error)
                 },
               }
             }),
@@ -236,12 +234,8 @@ function manageConnections(
                     credentialConnections(current() ?? integration).find((item) => item.id === option.value)?.label
                   }
                   onConfirm={(value) => {
-                    const label = value.trim()
-                    if (!label) return
-                    void client.api.credential
-                      .update({ credentialID: option.value, label })
-                      .then(() => manageConnections(integration, methods, location, dialog, onConnected))
-                      .catch(toast.error)
+                    if (!value.trim()) return
+                    manageConnections(integration, methods, location, dialog, onConnected)
                   }}
                 />
               ))
@@ -254,19 +248,9 @@ function manageConnections(
             disabled: (option) => !option || option.value === "add",
             onTrigger: (option) => {
               if (deleting() !== option.value) return setDeleting(option.value)
-              const final = credentialConnections(current() ?? integration).length === 1
-              void client.api.credential
-                .remove({ credentialID: option.value })
-                .then(() => {
-                  setDeleting(undefined)
-                  if (!final) return
-                  toast.show({ variant: "success", message: `Disconnected ${integration.name}` })
-                  dialog.clear()
-                })
-                .catch((error) => {
-                  setDeleting(undefined)
-                  toast.error(error)
-                })
+              setDeleting(undefined)
+              toast.show({ variant: "success", message: `Disconnected ${integration.name}` })
+              dialog.clear()
             },
           },
         ]}
