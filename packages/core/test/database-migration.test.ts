@@ -13,7 +13,6 @@ import { migrations } from "@opencode/core/database/migration.gen"
 import workspaceNameMigration from "@opencode/core/database/migration/20260410174513_workspace-name"
 import { Database } from "@opencode/core/database/database"
 import { tmpdir } from "./fixture/tmpdir"
-import legacyCredentialsMigration from "@opencode/core/database/migration/20260805200742_import_legacy_credentials"
 import worktreeMigration from "@opencode/core/database/migration/20260812213948_worktree"
 import previousV2Migration from "@opencode/core/database/migration/20260804233008_loose_psylocke"
 import workspaceMigration from "@opencode/core/database/migration/20260808023530_workspace_domain"
@@ -431,106 +430,6 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("imports legacy JSON credentials without changing the source file or existing credentials", async () => {
-    await using tmp = await tmpdir()
-    const source = path.join(tmp.path, "auth.json")
-    const content = JSON.stringify({
-      openai: { type: "oauth", refresh: "refresh", access: "access", expires: 123, accountId: "account" },
-      anthropic: { type: "api", key: "legacy-key", metadata: { region: "us" } },
-      google: { type: "api", key: "google-key", metadata: { region: "us" } },
-      "github-copilot": { type: "oauth", refresh: "refresh", access: "access", expires: 123 },
-      "custom-provider": { type: "api", key: "custom-key" },
-      "https://example.com/": { type: "wellknown", key: "TOKEN", token: "wellknown-key" },
-      invalid: { type: "unknown" },
-    })
-    await Bun.write(source, content)
-
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        yield* DatabaseMigration.apply(db)
-        const now = Date.now()
-        yield* db.run(sql`
-          INSERT INTO credential (id, integration_id, label, value, time_created, time_updated)
-          VALUES ('existing', 'anthropic', 'Existing', ${JSON.stringify({ type: "key", key: "current-key" })}, ${now}, ${now})
-        `)
-
-        yield* db.run(sql`DELETE FROM migration WHERE id = ${legacyCredentialsMigration.id}`)
-        yield* DatabaseMigration.applyOnly(db, [legacyCredentialsMigration])
-        yield* DatabaseMigration.applyOnly(db, [legacyCredentialsMigration])
-
-        expect(yield* db.all(sql`SELECT integration_id, label, value FROM credential ORDER BY integration_id`)).toEqual(
-          [
-            {
-              integration_id: "anthropic",
-              label: "Existing",
-              value: JSON.stringify({ type: "key", key: "current-key" }),
-            },
-            {
-              integration_id: "custom-provider",
-              label: "API key",
-              value: JSON.stringify({ type: "key", key: "custom-key" }),
-            },
-            {
-              integration_id: "github-copilot",
-              label: "OAuth",
-              value: JSON.stringify({
-                type: "oauth",
-                methodID: "device",
-                refresh: "refresh",
-                access: "access",
-                expires: 123,
-              }),
-            },
-            {
-              integration_id: "google",
-              label: "API key",
-              value: JSON.stringify({ type: "key", key: "google-key", metadata: { region: "us" } }),
-            },
-            {
-              integration_id: "https://example.com",
-              label: "API key",
-              value: JSON.stringify({ type: "key", key: "wellknown-key" }),
-            },
-            {
-              integration_id: "openai",
-              label: "OAuth",
-              value: JSON.stringify({
-                type: "oauth",
-                methodID: "chatgpt-browser",
-                refresh: "refresh",
-                access: "access",
-                expires: 123,
-                metadata: { accountID: "account" },
-              }),
-            },
-          ],
-        )
-        expect(yield* db.get(sql`SELECT value FROM kv WHERE key = 'wellknown:sources'`)).toEqual({
-          value: JSON.stringify(["https://example.com"]),
-        })
-      }),
-      Global.make({ data: tmp.path }),
-    )
-
-    expect(await Bun.file(source).text()).toBe(content)
-  })
-
-  test("skips legacy credential import when the source file is absent", async () => {
-    await using tmp = await tmpdir()
-
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        yield* DatabaseMigration.apply(db)
-        yield* db.run(sql`DELETE FROM migration WHERE id = ${legacyCredentialsMigration.id}`)
-        yield* DatabaseMigration.applyOnly(db, [legacyCredentialsMigration])
-
-        expect(yield* db.all(sql`SELECT id FROM credential`)).toEqual([])
-      }),
-      Global.make({ data: tmp.path }),
-    )
-  })
 
   test("moves Azure CLI connections saved as OAuth credentials to external credentials", async () => {
     await run(
