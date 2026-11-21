@@ -40,11 +40,11 @@ function credentialFromRequest(request: HttpServerRequest.HttpServerRequest) {
 
 const UNAUTHORIZED_MESSAGE = "Authentication required"
 
-// Browsers show a native credentials prompt for a Basic challenge even on fetch, which would stall the web app
-// before it can show its own sign-in screen. Only non-browser clients and page navigations get the challenge.
+// Browsers show a native credentials prompt for a Basic challenge, which would ask for a username and stall the
+// web app before it can show its own sign-in screen. Only page navigations get the challenge; fetches and clients
+// that omit the header (curl, SDKs, older browsers) get the plain 401 JSON.
 function challengeRequest(request: HttpServerRequest.HttpServerRequest) {
-  const mode = request.headers["sec-fetch-mode"]
-  return mode === undefined || mode === "navigate"
+  return request.headers["sec-fetch-mode"] === "navigate"
 }
 
 // Matches what the Authorization middleware encodes, for requests rejected before the HttpApi runs.
