@@ -32,19 +32,28 @@ export function filename(channel = OPENCODE_CHANNEL) {
   return `service-${channel.replace(/[^a-zA-Z0-9._-]/g, "-")}.json`
 }
 
-export function defaultPort(channel = OPENCODE_CHANNEL, platform = process.platform) {
-  const port = channelPort(channel)
+export function defaultPort(channel = OPENCODE_CHANNEL, platform = process.platform, user = userIdentity()) {
+  const port = channelPort(channel, user)
   // Windows hands out 0xC000-0xFFFF for outgoing connections, and Hyper-V and WinNAT reserve blocks of that range at
-  // boot, so a port there can fail as in use while nothing listens on it. Moving into the 0xB000 block keeps the low
-  // 12 bits: 0xC0DE becomes 0xB0DE, which is 0xC0DE - 4096, a nod to the v1 port.
+  // boot, so a port there can fail as in use while nothing listens on it. Folding into the 0xB000 block keeps the low
+  // 12 bits, so per-user derivations that only differ in high bits stay distinct after the move.
   if (platform === "win32" && port >= 0xc000) return 0xb000 | (port & 0xfff)
   return port
 }
 
-function channelPort(channel: string) {
-  if (channel === "latest" || channel === "dev" || channel === "beta" || channel === "next") return 0xc0de
-  if (channel === "local") return 0xc0df
-  return 10_000 + (Number.parseInt(Hash.fast(channel).slice(0, 8), 16) % 50_000)
+function channelPort(channel: string, user: string | undefined) {
+  // The port is derived per channel AND per user, not machine-global: the registration file advertising the service
+  // lives in each user's state directory, so a second account can never attach to another account's service and must
+  // not fight it for one port. Keeping the derivation deterministic per user preserves the port's role as the
+  // single-instance election lock for that user's concurrently starting clients.
+  const key = user === undefined ? channel : `${channel}:${user}`
+  return 10_000 + (Number.parseInt(Hash.fast(key).slice(0, 8), 16) % 50_000)
+}
+
+function userIdentity() {
+  const uid = process.getuid?.()
+  if (uid !== undefined) return String(uid)
+  return process.env.USERNAME ?? process.env.USER
 }
 
 export function legacyFilename(channel = OPENCODE_CHANNEL) {

@@ -16,21 +16,19 @@ import { testEffect } from "../../core/test/lib/effect"
 
 const it = testEffect(NodeFileSystem.layer)
 
-test("managed service ports are stable per installation channel", () => {
-  expect(ServiceConfig.defaultPort("latest", "linux")).toBe(0xc0de)
-  expect(ServiceConfig.defaultPort("dev", "linux")).toBe(0xc0de)
-  expect(ServiceConfig.defaultPort("beta", "linux")).toBe(0xc0de)
-  expect(ServiceConfig.defaultPort("next", "linux")).toBe(0xc0de)
-  expect(ServiceConfig.defaultPort("local", "linux")).toBe(0xc0df)
-  expect(ServiceConfig.defaultPort("latest", "darwin")).toBe(0xc0de)
-  expect(ServiceConfig.defaultPort("preview-a", "linux")).toBe(ServiceConfig.defaultPort("preview-a", "linux"))
-  expect(ServiceConfig.defaultPort("preview-a", "linux")).not.toBe(ServiceConfig.defaultPort("preview-b", "linux"))
+test("managed service ports are stable per installation channel and user", () => {
+  expect(ServiceConfig.defaultPort("dev", "linux", "1000")).toBe(ServiceConfig.defaultPort("dev", "linux", "1000"))
+  expect(ServiceConfig.defaultPort("dev", "linux", "1000")).not.toBe(ServiceConfig.defaultPort("dev", "linux", "1001"))
+  const channels = ["latest", "dev", "beta", "next", "local", "preview-a", "preview-b"]
+  const ports = channels.map((channel) => ServiceConfig.defaultPort(channel, "linux"))
+  for (const port of ports) {
+    expect(port).toBeGreaterThanOrEqual(10_000)
+    expect(port).toBeLessThan(60_000)
+  }
+  expect(new Set(ports).size).toBe(channels.length)
 })
 
 test("managed service ports on Windows stay below the range Windows reserves", () => {
-  expect(ServiceConfig.defaultPort("latest", "win32")).toBe(0xc0de - 4096)
-  expect(ServiceConfig.defaultPort("dev", "win32")).toBe(0xc0de - 4096)
-  expect(ServiceConfig.defaultPort("local", "win32")).toBe(0xc0df - 4096)
   const ports = Array.from({ length: 200 }, (_, index) => ({
     windows: ServiceConfig.defaultPort(`preview-${index}`, "win32"),
     linux: ServiceConfig.defaultPort(`preview-${index}`, "linux"),
