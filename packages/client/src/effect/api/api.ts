@@ -30,7 +30,6 @@ import type { Provider } from "@opencode/schema/provider"
 import type { Form } from "@opencode/schema/form"
 import type { Integration } from "@opencode/schema/integration"
 import type { Mcp } from "@opencode/schema/mcp"
-import type { Credential } from "@opencode/schema/credential"
 import type { PermissionSaved } from "@opencode/schema/permission-saved"
 import type { FileSystem } from "@opencode/schema/filesystem"
 import type { Command } from "@opencode/schema/command"
@@ -1622,47 +1621,6 @@ export interface McpApi<E = never> {
   readonly resource: { readonly catalog: McpResourceCatalogOperation<E> }
 }
 
-export type CredentialListOutput = ReadonlyArray<Credential.Entry>
-export type CredentialListOperation<E = never> = () => Effect.Effect<CredentialListOutput, E>
-
-export type CredentialCreateInput = {
-  readonly id?: Credential.ID | undefined
-  readonly integrationID: Integration.ID
-  readonly label?: string | undefined
-  readonly value: Credential.Value
-  readonly activate?: boolean | undefined
-}
-export type CredentialCreateOutput = Credential.Entry
-export type CredentialCreateOperation<E = never> = (
-  input: CredentialCreateInput,
-) => Effect.Effect<CredentialCreateOutput, E>
-
-export type CredentialUpdateInput = { readonly credentialID: Credential.ID; readonly label: string }
-export type CredentialUpdateOutput = void
-export type CredentialUpdateOperation<E = never> = (
-  input: CredentialUpdateInput,
-) => Effect.Effect<CredentialUpdateOutput, E>
-
-export type CredentialActivateInput = { readonly credentialID: Credential.ID }
-export type CredentialActivateOutput = void
-export type CredentialActivateOperation<E = never> = (
-  input: CredentialActivateInput,
-) => Effect.Effect<CredentialActivateOutput, E>
-
-export type CredentialRemoveInput = { readonly credentialID: Credential.ID }
-export type CredentialRemoveOutput = void
-export type CredentialRemoveOperation<E = never> = (
-  input: CredentialRemoveInput,
-) => Effect.Effect<CredentialRemoveOutput, E>
-
-export interface CredentialApi<E = never> {
-  readonly list: CredentialListOperation<E>
-  readonly create: CredentialCreateOperation<E>
-  readonly update: CredentialUpdateOperation<E>
-  readonly activate: CredentialActivateOperation<E>
-  readonly remove: CredentialRemoveOperation<E>
-}
-
 export type ProjectListInput = { readonly archived?: boolean | undefined }
 export type ProjectListOutput = ReadonlyArray<Project.Info>
 export type ProjectListOperation<E = never> = (input?: ProjectListInput) => Effect.Effect<ProjectListOutput, E>
@@ -2293,7 +2251,6 @@ export interface AppApi<E = never> {
   readonly provider: ProviderApi<E>
   readonly integration: IntegrationApi<E>
   readonly mcp: McpApi<E>
-  readonly credential: CredentialApi<E>
   readonly project: ProjectApi<E>
   readonly form: FormApi<E>
   readonly permission: PermissionApi<E>

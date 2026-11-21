@@ -197,9 +197,6 @@ export const SettingsProviders: Component<{
           return
         }
 
-        await Promise.all(
-          credentials.map((credential) => serverSdk.api.credential.remove({ credentialID: credential.id })),
-        )
         updateDisconnecting(ids, "removed")
         showToast({
           variant: "success",

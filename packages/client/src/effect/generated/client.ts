@@ -155,15 +155,6 @@ import type {
   McpDisconnectOutput,
   McpResourceCatalogInput,
   McpResourceCatalogOutput,
-  CredentialListOutput,
-  CredentialCreateInput,
-  CredentialCreateOutput,
-  CredentialUpdateInput,
-  CredentialUpdateOutput,
-  CredentialActivateInput,
-  CredentialActivateOutput,
-  CredentialRemoveInput,
-  CredentialRemoveOutput,
   ProjectListInput,
   ProjectListOutput,
   ProjectUpdateInput,
@@ -1055,58 +1046,6 @@ const adaptGroupMcp = (raw: RawClient["server.mcp"]) => ({
   resource: { catalog: EndpointMcpResourceCatalog(raw) },
 })
 
-const EndpointCredentialList = (raw: RawClient["server.credential"]) => () =>
-  preserveEffect<CredentialListOutput>()(
-    raw["credential.list"]({}).pipe(
-      Effect.mapError(mapClientError),
-      Effect.map((value) => value.data),
-    ),
-  )
-
-const EndpointCredentialCreate = (raw: RawClient["server.credential"]) => (input: CredentialCreateInput) =>
-  preserveEffect<CredentialCreateOutput>()(
-    raw["credential.create"]({
-      payload: {
-        id: input["id"],
-        integrationID: input["integrationID"],
-        label: input["label"],
-        value: input["value"],
-        activate: input["activate"],
-      },
-    }).pipe(
-      Effect.mapError(mapClientError),
-      Effect.map((value) => value.data),
-    ),
-  )
-
-const EndpointCredentialUpdate = (raw: RawClient["server.credential"]) => (input: CredentialUpdateInput) =>
-  preserveEffect<CredentialUpdateOutput>()(
-    raw["credential.update"]({
-      params: { credentialID: input["credentialID"] },
-      payload: { label: input["label"] },
-    }).pipe(Effect.mapError(mapClientError)),
-  )
-
-const EndpointCredentialActivate = (raw: RawClient["server.credential"]) => (input: CredentialActivateInput) =>
-  preserveEffect<CredentialActivateOutput>()(
-    raw["credential.activate"]({ params: { credentialID: input["credentialID"] } }).pipe(
-      Effect.mapError(mapClientError),
-    ),
-  )
-
-const EndpointCredentialRemove = (raw: RawClient["server.credential"]) => (input: CredentialRemoveInput) =>
-  preserveEffect<CredentialRemoveOutput>()(
-    raw["credential.remove"]({ params: { credentialID: input["credentialID"] } }).pipe(Effect.mapError(mapClientError)),
-  )
-
-const adaptGroupCredential = (raw: RawClient["server.credential"]) => ({
-  list: EndpointCredentialList(raw),
-  create: EndpointCredentialCreate(raw),
-  update: EndpointCredentialUpdate(raw),
-  activate: EndpointCredentialActivate(raw),
-  remove: EndpointCredentialRemove(raw),
-})
-
 const EndpointProjectList = (raw: RawClient["server.project"]) => (input?: ProjectListInput) =>
   preserveEffect<ProjectListOutput>()(
     raw["project.list"]({ query: { archived: input?.["archived"] } }).pipe(Effect.mapError(mapClientError)),
@@ -1642,7 +1581,6 @@ const adaptClient = (raw: RawClient) => ({
   provider: adaptGroupProvider(raw["server.provider"]),
   integration: adaptGroupIntegration(raw["server.integration"]),
   mcp: adaptGroupMcp(raw["server.mcp"]),
-  credential: adaptGroupCredential(raw["server.credential"]),
   project: adaptGroupProject(raw["server.project"]),
   form: adaptGroupForm(raw["server.form"]),
   permission: adaptGroupPermission(raw["server.permission"]),

@@ -72,12 +72,6 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
     }),
     Spec.make("acp", {
       description: "Start an Agent Client Protocol server",
-      params: {
-        login: Flag.Boolean("login").pipe(
-          Flag.withDescription("Run auth login instead of starting the server"),
-          Flag.withDefault(false),
-        ),
-      },
     }),
     Spec.make("api", {
       description: "Make a request to the running server",
@@ -125,84 +119,6 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
         }),
       ],
     }),
-    Spec.make("auth", {
-      description: "manage integrations and credentials",
-      commands: [
-        Spec.make("list", {
-          description: "list integrations and credentials",
-          params: {
-            ...ServerParams,
-            format: Flag.Literals("format", ["default", "json"]).pipe(
-              Flag.withDescription("Output format"),
-              Flag.withDefault("default"),
-            ),
-          },
-        }),
-        Spec.make("login", {
-          description: "connect an integration",
-          params: {
-            ...ServerParams,
-            target: Argument.String("target").pipe(
-              Argument.withDescription("Integration ID, name, or well-known provider URL"),
-              Argument.optional,
-            ),
-            method: Flag.String("method").pipe(Flag.withDescription("Authentication method ID"), Flag.optional),
-            answer: Flag.String("answer").pipe(
-              Flag.withDescription("Provider form answer (key=value; repeat for multiple fields)"),
-              Flag.atMost(100),
-            ),
-          },
-        }),
-        Spec.make("logout", {
-          description: "log out of a saved account",
-          params: {
-            ...ServerParams,
-            target: Argument.String("target").pipe(
-              Argument.withDescription("Integration ID or name"),
-              Argument.optional,
-            ),
-            credential: Argument.String("credential").pipe(
-              Argument.withDescription("Credential ID or label (opens an account picker when omitted)"),
-              Argument.optional,
-            ),
-          },
-        }),
-        Spec.make("export", {
-          description: "print stored credentials, including secrets, as JSON",
-          params: {
-            ...ServerParams,
-            target: Argument.String("target").pipe(
-              Argument.withDescription("Integration ID or name (exports every integration when omitted)"),
-              Argument.optional,
-            ),
-          },
-        }),
-        Spec.make("import", {
-          description: "import credentials exported by auth export",
-          params: {
-            ...ServerParams,
-            file: Argument.String("file").pipe(
-              Argument.withDescription("JSON file to import (reads stdin when omitted)"),
-              Argument.optional,
-            ),
-          },
-        }),
-        Spec.make("switch", {
-          description: "switch the active account for an integration",
-          params: {
-            ...ServerParams,
-            target: Argument.String("target").pipe(
-              Argument.withDescription("Integration ID or name"),
-              Argument.optional,
-            ),
-            credential: Argument.String("credential").pipe(
-              Argument.withDescription("Credential ID or label (opens an account picker when omitted)"),
-              Argument.optional,
-            ),
-          },
-        }),
-      ],
-    }),
     Spec.make("mcp", {
       description: "Manage MCP (Model Context Protocol) servers",
       commands: [
@@ -229,16 +145,6 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
               Flag.withDefault(false),
             ),
           },
-        }),
-        Spec.make("auth", {
-          description: "Authenticate with an OAuth-capable remote MCP server",
-          params: {
-            name: Argument.String("name").pipe(Argument.withDescription("Name of the MCP server"), Argument.optional),
-          },
-        }),
-        Spec.make("logout", {
-          description: "Remove stored OAuth credentials for an MCP server",
-          params: { name: Argument.String("name").pipe(Argument.withDescription("Name of the MCP server")) },
         }),
       ],
     }),

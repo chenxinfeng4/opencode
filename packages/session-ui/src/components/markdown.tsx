@@ -1,5 +1,6 @@
 import { useI18n } from "@opencode/ui/context/i18n"
 import { checksum } from "@opencode/util/encode"
+import { writeClipboard } from "../clipboard"
 import {
   type ComponentProps,
   createEffect,
@@ -446,10 +447,7 @@ function setupCodeCopy(root: HTMLDivElement, getLabels: () => CopyLabels) {
     const content = code?.textContent ?? ""
 
     if (!content) return
-    const clipboard = navigator?.clipboard
-
-    if (!clipboard) return
-    await clipboard.writeText(content)
+    if (!(await writeClipboard(content))) return
     const labels = getLabels()
     setCopyState(button, labels, true)
     const existing = timeouts.get(button)

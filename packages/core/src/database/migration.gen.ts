@@ -38,7 +38,6 @@ import m35 from "./migration/20260622142730_simplify_session_context_epoch.js"
 import m36 from "./migration/20260622170816_reset_v2_session_state.js"
 import m37 from "./migration/20260622202450_simplify_session_input.js"
 import m38 from "./migration/20260804233008_loose_psylocke.js"
-import m39 from "./migration/20260805200742_import_legacy_credentials.js"
 import m40 from "./migration/20260808023530_workspace_domain.js"
 import m41 from "./migration/20260811161259_execution_claim_attempts.js"
 import m42 from "./migration/20260812181746_session_inbox.js"
@@ -90,7 +89,6 @@ export const migrations = [
   m36,
   m37,
   m38,
-  m39,
   m40,
   m41,
   m42,

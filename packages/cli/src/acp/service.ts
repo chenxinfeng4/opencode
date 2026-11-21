@@ -7,7 +7,6 @@ import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
 import type {
   AuthenticateRequest,
   AuthenticateResponse,
-  AuthMethod,
   CancelNotification,
   CloseSessionRequest,
   CloseSessionResponse,
@@ -45,7 +44,6 @@ import { ACPReplay } from "./replay"
 import type { ACPSessions, Attached, SupportedMcpServer } from "./sessions"
 import type { ACPTurn } from "./turn"
 
-const AuthMethodID = "opencode-login"
 
 export interface Interface {
   readonly initialize: (input: InitializeRequest) => Effect.Effect<InitializeResponse>
@@ -105,17 +103,6 @@ export function make(input: {
   return {
     initialize: Effect.fnUntraced(function* (params) {
       yield* Ref.set(input.capabilities, ACPCapabilities.parse(params.clientCapabilities))
-      const authMethod: AuthMethod = {
-        description: "Run `opencode auth login` in the terminal",
-        name: "Login with opencode",
-        id: AuthMethodID,
-        ...(params.clientCapabilities?.auth?.terminal ? { type: "terminal" as const, args: ["--login"] } : {}),
-      }
-      if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
-        authMethod._meta = {
-          "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "OpenCode Login" },
-        }
-      }
       return {
         protocolVersion: 1,
         agentCapabilities: {
@@ -125,14 +112,12 @@ export function make(input: {
           sessionCapabilities: { additionalDirectories: {}, close: {}, delete: {}, fork: {}, list: {}, resume: {} },
           _meta: { [ACPCapabilities.ChildSessionUpdates]: true },
         },
-        authMethods: [authMethod],
+        authMethods: [],
         agentInfo: { name: "OpenCode", version: OPENCODE_VERSION },
       }
     }),
     authenticate: Effect.fnUntraced(function* (params) {
-      if (params.methodId !== AuthMethodID)
-        return yield* new ACPError.UnknownAuthMethodError({ methodId: params.methodId })
-      return {}
+      return yield* new ACPError.UnknownAuthMethodError({ methodId: params.methodId })
     }),
     newSession: Effect.fnUntraced(function* (params) {
       const directories = yield* ACPDirectories.parse(params.cwd, params.additionalDirectories)

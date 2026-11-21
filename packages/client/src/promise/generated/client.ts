@@ -149,15 +149,6 @@ import type {
   McpDisconnectOutput,
   McpResourceCatalogInput,
   McpResourceCatalogOutput,
-  CredentialListOutput,
-  CredentialCreateInput,
-  CredentialCreateOutput,
-  CredentialUpdateInput,
-  CredentialUpdateOutput,
-  CredentialActivateInput,
-  CredentialActivateOutput,
-  CredentialRemoveInput,
-  CredentialRemoveOutput,
   ProjectListInput,
   ProjectListOutput,
   ProjectUpdateInput,
@@ -1417,65 +1408,6 @@ export function make(options: ClientOptions) {
             requestOptions,
           ),
       },
-    },
-    credential: {
-      list: (requestOptions?: RequestOptions) =>
-        request<{ readonly data: CredentialListOutput }>(
-          { method: "GET", path: `/api/credential`, successStatus: 200, declaredStatuses: [400, 401], empty: false },
-          requestOptions,
-        ).then((value) => value.data),
-      create: (input: CredentialCreateInput, requestOptions?: RequestOptions) =>
-        request<{ readonly data: CredentialCreateOutput }>(
-          {
-            method: "POST",
-            path: `/api/credential`,
-            body: {
-              id: input["id"],
-              integrationID: input["integrationID"],
-              label: input["label"],
-              value: input["value"],
-              activate: input["activate"],
-            },
-            successStatus: 200,
-            declaredStatuses: [400, 401, 409],
-            empty: false,
-          },
-          requestOptions,
-        ).then((value) => value.data),
-      update: (input: CredentialUpdateInput, requestOptions?: RequestOptions) =>
-        request<CredentialUpdateOutput>(
-          {
-            method: "PATCH",
-            path: `/api/credential/${encodeURIComponent(input.credentialID)}`,
-            body: { label: input["label"] },
-            successStatus: 204,
-            declaredStatuses: [400, 401],
-            empty: true,
-          },
-          requestOptions,
-        ),
-      activate: (input: CredentialActivateInput, requestOptions?: RequestOptions) =>
-        request<CredentialActivateOutput>(
-          {
-            method: "POST",
-            path: `/api/credential/${encodeURIComponent(input.credentialID)}/activate`,
-            successStatus: 204,
-            declaredStatuses: [400, 401],
-            empty: true,
-          },
-          requestOptions,
-        ),
-      remove: (input: CredentialRemoveInput, requestOptions?: RequestOptions) =>
-        request<CredentialRemoveOutput>(
-          {
-            method: "DELETE",
-            path: `/api/credential/${encodeURIComponent(input.credentialID)}`,
-            successStatus: 204,
-            declaredStatuses: [400, 401],
-            empty: true,
-          },
-          requestOptions,
-        ),
     },
     project: {
       list: (input?: ProjectListInput, requestOptions?: RequestOptions) =>

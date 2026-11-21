@@ -1,24 +1,15 @@
-import { showToast } from "@/shell/notifications/toast"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
-import { formatServerError } from "@/runtime/server/errors"
 import { type ProviderAccount } from "./accounts"
 
-// Shared by the connect dialog and Settings so both switch, rename and remove accounts the same way.
+// Provider accounts are not stored in this build; providers authenticate from opencode.json.
 export function useProviderAccountActions(directory: () => string | undefined) {
   const language = useLanguage()
-  const sdk = useServerSDK()
   const data = useData()
 
-  const location = () => {
-    const value = directory()
-
-    return value ? { directory: value } : undefined
-  }
-
   const refresh = async () => {
-    const ref = location()
+    const value = directory()
+    const ref = value ? { directory: value } : undefined
     data.location.integration.invalidate(ref)
     data.location.provider.invalidate(ref)
     data.location.model.invalidate(ref)
@@ -29,50 +20,23 @@ export function useProviderAccountActions(directory: () => string | undefined) {
     ])
   }
 
-  const fail = (message: string) => showToast({ title: language.t("common.requestFailed"), description: message })
+  const unavailable = async (_input: {
+    integrationID: string
+    provider: string
+    account: ProviderAccount
+    final?: boolean
+  }) => {
+    void language
+    await refresh()
+  }
 
-  const activate = (input: { integrationID: string; provider: string; account: ProviderAccount }) =>
-    sdk.api.credential
-      .activate({ credentialID: input.account.id })
-      .then(refresh)
-      .then(() =>
-        showToast({
-          variant: "success",
-          icon: "circle-check",
-          title: language.t("settings.providers.account.switched.title", { provider: input.provider }),
-          description: language.t("settings.providers.account.switched.description", { account: input.account.label }),
-        }),
-      )
-      .catch((error) => fail(formatServerError(error, language.t)))
+  const activate = unavailable
+  const remove = unavailable
+  const rename = async (_account: ProviderAccount, _label: string) => {
+    await refresh()
 
-  const remove = (input: { integrationID: string; provider: string; account: ProviderAccount; final: boolean }) =>
-    sdk.api.credential
-      .remove({ credentialID: input.account.id })
-      .then(refresh)
-      .then(() =>
-        showToast({
-          variant: "success",
-          icon: "circle-check",
-          title: input.final
-            ? language.t("provider.disconnect.toast.disconnected.title", { provider: input.provider })
-            : language.t("settings.providers.account.removed.title", { account: input.account.label }),
-          description: input.final
-            ? language.t("provider.disconnect.toast.disconnected.description", { provider: input.provider })
-            : language.t("settings.providers.account.removed.description", { provider: input.provider }),
-        }),
-      )
-      .catch((error) => fail(formatServerError(error, language.t)))
-
-  const rename = (account: ProviderAccount, label: string) =>
-    sdk.api.credential
-      .update({ credentialID: account.id, label })
-      .then(refresh)
-      .then(() => true)
-      .catch((error) => {
-        fail(formatServerError(error, language.t))
-
-        return false
-      })
+    return false
+  }
 
   return { refresh, activate, remove, rename }
 }

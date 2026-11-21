@@ -30,14 +30,6 @@ const Handlers = Runtime.handlers(Commands, {
   uninstall: () => import("./commands/handlers/uninstall"),
   acp: () => import("./commands/handlers/acp"),
   api: () => import("./commands/handlers/api"),
-  auth: {
-    list: () => import("./commands/handlers/auth/list"),
-    login: () => import("./commands/handlers/auth/login"),
-    logout: () => import("./commands/handlers/auth/logout"),
-    export: () => import("./commands/handlers/auth/export"),
-    import: () => import("./commands/handlers/auth/import"),
-    switch: () => import("./commands/handlers/auth/switch"),
-  },
   debug: {
     agents: () => import("./commands/handlers/debug/agents"),
     config: () => import("./commands/handlers/debug/config"),
@@ -46,8 +38,6 @@ const Handlers = Runtime.handlers(Commands, {
   mcp: {
     list: () => import("./commands/handlers/mcp/list"),
     add: () => import("./commands/handlers/mcp/add"),
-    auth: () => import("./commands/handlers/mcp/auth"),
-    logout: () => import("./commands/handlers/mcp/logout"),
   },
   plugin: {
     list: () => import("./commands/handlers/plugin/list"),

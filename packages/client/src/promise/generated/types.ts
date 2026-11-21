@@ -663,21 +663,6 @@ export type IntegrationCommandMethod = {
   command: Array<string>
 }
 
-export type CredentialOAuth = {
-  type: "oauth"
-  methodID: IntegrationMethodID
-  refresh: string
-  access: string
-  expires: number
-  metadata?: { [x: string]: JsonValue }
-}
-
-export type CredentialExternal = {
-  type: "external"
-  methodID: IntegrationMethodID
-  metadata?: { [x: string]: JsonValue }
-}
-
 export type ConnectionCredentialInfo = {
   type: "credential"
   id: CredentialID
@@ -840,7 +825,7 @@ export type FormMultiselectField1 = {
   default?: Array<string>
 }
 
-export type FormAnswer2 = { [x: string]: FormValue1 }
+export type FormAnswer1 = { [x: string]: FormValue1 }
 
 export type VcsInfo = { provider?: string; branch: VcsBranch }
 
@@ -1912,13 +1897,6 @@ export type FormState =
   | { status: "answered"; answer: FormAnswer }
   | { status: "cancelled"; message?: string }
 
-export type CredentialKey = {
-  type: "key"
-  key: string
-  metadata?: { [x: string]: JsonValue }
-  configuration?: FormAnswer
-}
-
 export type ProviderInfo = {
   id: ProviderID
   canonical?: ProviderID
@@ -1982,7 +1960,7 @@ export type FormReplied = {
   metadata?: { [x: string]: any }
   type: "form.replied"
   location?: LocationRef
-  data: { id: FormID; sessionID: string; answer: FormAnswer2 }
+  data: { id: FormID; sessionID: string; answer: FormAnswer1 }
 }
 
 export type SessionInboxMove = {
@@ -2366,8 +2344,6 @@ export type SessionMessageAssistantTool1 = {
 
 export type FormFields = [FormField, ...Array<FormField>]
 
-export type CredentialValue = CredentialOAuth | CredentialKey | CredentialExternal
-
 export type FormFields2 = [FormField1, ...Array<FormField1>]
 
 export type SessionMessageCompaction =
@@ -2431,14 +2407,6 @@ export type IntegrationOAuthMethod = { id: IntegrationMethodID; type: "oauth"; l
 export type IntegrationKeyMethod = { type: "key"; label?: string; form?: FormFields }
 
 export type IntegrationExternalMethod = { id: IntegrationMethodID; type: "external"; label: string; form?: FormFields }
-
-export type CredentialEntry = {
-  id: CredentialID
-  integrationID: IntegrationID
-  label: string
-  active: boolean
-  value: CredentialValue
-}
 
 export type FormInfo1 = { id: FormID; sessionID: string; title: string; metadata?: FormMetadata1; fields: FormFields2 }
 
@@ -5990,168 +5958,6 @@ export type McpResourceCatalogInput = {
 }
 
 export type McpResourceCatalogOutput = { location: LocationPublicRef; data: McpResourceCatalog }
-
-export type CredentialListOutput = { data: Array<CredentialEntry> }["data"]
-
-export type CredentialCreateInput = {
-  readonly id?: {
-    readonly id?: string
-    readonly integrationID: string
-    readonly label?: string
-    readonly value:
-      | {
-          readonly type: "oauth"
-          readonly methodID: string
-          readonly refresh: string
-          readonly access: string
-          readonly expires: number
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-      | {
-          readonly type: "key"
-          readonly key: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-          readonly configuration?: {
-            readonly [x: string]: string | number | "Infinity" | "-Infinity" | "NaN" | boolean | ReadonlyArray<string>
-          }
-        }
-      | {
-          readonly type: "external"
-          readonly methodID: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-    readonly activate?: boolean
-  }["id"]
-  readonly integrationID: {
-    readonly id?: string
-    readonly integrationID: string
-    readonly label?: string
-    readonly value:
-      | {
-          readonly type: "oauth"
-          readonly methodID: string
-          readonly refresh: string
-          readonly access: string
-          readonly expires: number
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-      | {
-          readonly type: "key"
-          readonly key: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-          readonly configuration?: {
-            readonly [x: string]: string | number | "Infinity" | "-Infinity" | "NaN" | boolean | ReadonlyArray<string>
-          }
-        }
-      | {
-          readonly type: "external"
-          readonly methodID: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-    readonly activate?: boolean
-  }["integrationID"]
-  readonly label?: {
-    readonly id?: string
-    readonly integrationID: string
-    readonly label?: string
-    readonly value:
-      | {
-          readonly type: "oauth"
-          readonly methodID: string
-          readonly refresh: string
-          readonly access: string
-          readonly expires: number
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-      | {
-          readonly type: "key"
-          readonly key: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-          readonly configuration?: {
-            readonly [x: string]: string | number | "Infinity" | "-Infinity" | "NaN" | boolean | ReadonlyArray<string>
-          }
-        }
-      | {
-          readonly type: "external"
-          readonly methodID: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-    readonly activate?: boolean
-  }["label"]
-  readonly value: {
-    readonly id?: string
-    readonly integrationID: string
-    readonly label?: string
-    readonly value:
-      | {
-          readonly type: "oauth"
-          readonly methodID: string
-          readonly refresh: string
-          readonly access: string
-          readonly expires: number
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-      | {
-          readonly type: "key"
-          readonly key: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-          readonly configuration?: {
-            readonly [x: string]: string | number | "Infinity" | "-Infinity" | "NaN" | boolean | ReadonlyArray<string>
-          }
-        }
-      | {
-          readonly type: "external"
-          readonly methodID: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-    readonly activate?: boolean
-  }["value"]
-  readonly activate?: {
-    readonly id?: string
-    readonly integrationID: string
-    readonly label?: string
-    readonly value:
-      | {
-          readonly type: "oauth"
-          readonly methodID: string
-          readonly refresh: string
-          readonly access: string
-          readonly expires: number
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-      | {
-          readonly type: "key"
-          readonly key: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-          readonly configuration?: {
-            readonly [x: string]: string | number | "Infinity" | "-Infinity" | "NaN" | boolean | ReadonlyArray<string>
-          }
-        }
-      | {
-          readonly type: "external"
-          readonly methodID: string
-          readonly metadata?: { readonly [x: string]: JsonValue }
-        }
-    readonly activate?: boolean
-  }["activate"]
-}
-
-export type CredentialCreateOutput = { data: CredentialEntry }["data"]
-
-export type CredentialUpdateInput = {
-  readonly credentialID: { readonly credentialID: string }["credentialID"]
-  readonly label: { readonly label: string }["label"]
-}
-
-export type CredentialUpdateOutput = void
-
-export type CredentialActivateInput = { readonly credentialID: { readonly credentialID: string }["credentialID"] }
-
-export type CredentialActivateOutput = void
-
-export type CredentialRemoveInput = { readonly credentialID: { readonly credentialID: string }["credentialID"] }
-
-export type CredentialRemoveOutput = void
 
 export type ProjectListInput = { readonly archived?: { readonly archived?: boolean | undefined }["archived"] }
 
