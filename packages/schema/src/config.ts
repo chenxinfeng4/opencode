@@ -122,9 +122,17 @@ export interface PatchProviderModel extends Schema.Schema.Type<typeof PatchProvi
 export const PatchProvider = Schema.Struct({
   providerID: Schema.String,
   name: Schema.String.pipe(optional),
+  npm: Schema.String.pipe(optional),
   baseURL: Schema.String.pipe(optional),
   apiKey: Schema.String.pipe(optional),
+  env: Schema.Array(Schema.String).pipe(optional),
   models: Schema.Array(PatchProviderModel).pipe(optional),
+  headers: Schema.Array(
+    Schema.Struct({
+      key: Schema.String,
+      value: Schema.String,
+    }),
+  ).pipe(optional),
   remove: Schema.Boolean.pipe(optional),
 }).annotate({ identifier: "Config.Patch.Provider" })
 export interface PatchProvider extends Schema.Schema.Type<typeof PatchProvider> {}

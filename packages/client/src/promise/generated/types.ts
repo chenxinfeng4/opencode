@@ -6677,9 +6677,12 @@ export type ConfigUpdateInput = {
     readonly provider?: {
       readonly providerID: string
       readonly name?: string
+      readonly npm?: string
       readonly baseURL?: string
       readonly apiKey?: string
+      readonly env?: ReadonlyArray<string>
       readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }>
+      readonly headers?: ReadonlyArray<{ readonly key: string; readonly value: string }>
       readonly remove?: boolean
     }
   }["shell"]
@@ -6688,9 +6691,12 @@ export type ConfigUpdateInput = {
     readonly provider?: {
       readonly providerID: string
       readonly name?: string
+      readonly npm?: string
       readonly baseURL?: string
       readonly apiKey?: string
+      readonly env?: ReadonlyArray<string>
       readonly models?: ReadonlyArray<{ readonly id: string; readonly name?: string }>
+      readonly headers?: ReadonlyArray<{ readonly key: string; readonly value: string }>
       readonly remove?: boolean
     }
   }["provider"]

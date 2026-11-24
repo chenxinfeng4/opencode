@@ -8,6 +8,7 @@ import { showToast } from "@/shell/notifications/toast"
 import { batch, For } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useData } from "@/runtime/server/current"
+import { useServerSDK } from "@/runtime/server/client"
 import { useLanguage } from "@/runtime/i18n/language"
 import { type FormState, headerRow, modelRow, validateCustomProvider } from "./form"
 import { CustomManagedProviderIcon } from "@/providers/models/provider-group"
@@ -15,6 +16,7 @@ import { CustomManagedProviderIcon } from "@/providers/models/provider-group"
 export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
   const dialog = useDialog()
   const data = useData()
+  const sdk = useServerSDK()
   const language = useLanguage()
 
   const [form, setForm] = createStore<FormState>({
@@ -106,8 +108,24 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
 
   const saveMutation = useMutation(() => ({
     mutationFn: async (result: NonNullable<ReturnType<typeof validate>>): Promise<typeof result> => {
-      // TODO: Restore custom providers when V2 exposes config and arbitrary credential APIs.
-      throw new Error(language.t("provider.custom.unavailable"))
+      // The custom provider persists as a config entry; the server registers it after reloading
+      // the patched document, so the lists refresh before the dialog reports success.
+      await sdk.api.config.update({
+        provider: {
+          providerID: result.providerID,
+          name: result.name,
+          npm: "@ai-sdk/openai-compatible",
+          baseURL: result.config.options.baseURL,
+          ...(result.config.env ? { env: result.config.env } : {}),
+          ...(result.key ? { apiKey: result.key } : {}),
+          headers: Object.entries(result.config.options.headers ?? {}).map(([key, value]) => ({ key, value })),
+          models: Object.entries(result.config.models).map(([id, model]) => ({ id, name: model.name })),
+        },
+      })
+      data.location.provider.invalidate(undefined)
+      data.location.model.invalidate(undefined)
+      await Promise.all([data.location.provider.sync(undefined), data.location.model.sync(undefined)])
+      return result
     },
     onSuccess: (result) => {
       dialog.close()

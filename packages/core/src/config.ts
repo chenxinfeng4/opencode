@@ -452,11 +452,18 @@ function applyProviderPatch(text: string, patch: PatchProvider) {
     return applyEdits(text, modify(text, ["provider", patch.providerID], undefined, jsonFormat))
   }
   const entry = existing ?? {}
+  if (patch.npm !== undefined) entry.npm = patch.npm
   if (patch.name !== undefined) entry.name = patch.name
-  if (patch.baseURL !== undefined || patch.apiKey !== undefined) {
+  if (patch.env !== undefined) entry.env = patch.env
+  if (patch.baseURL !== undefined || patch.apiKey !== undefined || patch.headers !== undefined) {
     const options = isRecord(entry.options) ? { ...entry.options } : {}
     if (patch.baseURL !== undefined) options.baseURL = patch.baseURL
     if (patch.apiKey !== undefined) options.apiKey = patch.apiKey
+    if (patch.headers !== undefined) {
+      const headers = Object.fromEntries(patch.headers.map((header) => [header.key, header.value]))
+      if (Object.keys(headers).length > 0) options.headers = headers
+      else delete options.headers
+    }
     entry.options = options
   }
   if (patch.models !== undefined) {

@@ -1,3 +1,4 @@
+import { Config } from "@opencode/core/config"
 import { Integration } from "@opencode/core/integration"
 import { Plugin } from "@opencode/core/plugin"
 import { Effect } from "effect"
@@ -81,6 +82,18 @@ export const IntegrationHandler = HttpApiBuilder.group(Api, "server.integration"
               label: ctx.payload.label,
             }),
           )
+          // Offline builds disable the credential store, so the key persists as the
+          // provider's `options.apiKey` in the global config; that entry is what
+          // activates the provider for key-based catalog integrations.
+          const config = yield* Config.Service
+          if (!config.update) return yield* Effect.die(new Error("Config updates are unavailable in this runtime"))
+          yield* config
+            .update({ provider: { providerID: ctx.params.integrationID, apiKey: ctx.payload.key } })
+            .pipe(
+              Effect.mapError(
+                (error) => new InvalidRequestError({ message: error.message, kind: "config_write" }),
+              ),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
