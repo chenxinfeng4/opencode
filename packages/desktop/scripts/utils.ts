@@ -12,11 +12,12 @@ export type Channel = "dev" | "beta" | "prod"
 export function resolveChannel(): Channel {
   const raw = process.env.OPENCODE_CHANNEL
 
-  if (raw === "dev" || raw === "beta" || raw === "prod") return raw
+  if (raw === "local" || raw === "dev" || raw === "beta") return raw
 
   if (raw === "latest") return "prod"
 
-  return "dev"
+  // This fork ships a single prod identity; only an explicit channel env overrides it.
+  return "prod"
 }
 
 export const CLI_BINARIES: Array<{ target: string; package: string; os: string; cpu: string }> = [

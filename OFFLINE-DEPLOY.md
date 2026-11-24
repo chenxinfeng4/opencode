@@ -89,12 +89,12 @@ Bun Windows compile stub, cached in `packages/cli/dist/.bun/` (gitignored).
 
    ```sh
    cd packages/desktop
-   NODE_OPTIONS=--max-old-space-size=4096 OPENCODE_CHANNEL=dev \
+   NODE_OPTIONS=--max-old-space-size=4096 OPENCODE_CHANNEL=prod \
      OPENCODE_VERSION=<cli-version> ./node_modules/.bin/electron-vite build
 
    ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ \
    ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ \
-   OPENCODE_CHANNEL=dev OPENCODE_CLI_TARGET=x86_64-pc-windows-msvc \
+   OPENCODE_CHANNEL=prod OPENCODE_CLI_TARGET=x86_64-pc-windows-msvc \
    ./node_modules/.bin/electron-builder --win --publish never \
      --config electron-builder.config.ts
    ```
