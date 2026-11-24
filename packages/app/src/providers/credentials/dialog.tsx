@@ -9,6 +9,7 @@ import { batch, For } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useData } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
+import { useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { type FormState, headerRow, modelRow, validateCustomProvider } from "./form"
 import { CustomManagedProviderIcon } from "@/providers/models/provider-group"
@@ -17,6 +18,7 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
   const dialog = useDialog()
   const data = useData()
   const sdk = useServerSDK()
+  const global = useGlobal()
   const language = useLanguage()
 
   const [form, setForm] = createStore<FormState>({
@@ -128,6 +130,11 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
       return result
     },
     onSuccess: (result) => {
+      // The picker defaults to the latest model per family and hides everything else, so a fresh
+      // custom provider stays invisible until its models are marked shown, like the connect flow does.
+      global.models.show(
+        Object.keys(result.config.models).map((modelID) => ({ providerID: result.providerID, modelID })),
+      )
       dialog.close()
       showToast({
         variant: "success",
