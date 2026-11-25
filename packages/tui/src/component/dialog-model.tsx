@@ -78,7 +78,8 @@ export function DialogModel(props: { providerID?: string }) {
             title: model.name,
             releaseDate: model.time.released,
             description: favorite ? "(Favorite)" : undefined,
-            category: connected() ? (provider?.name ?? model.providerID) : undefined,
+            // Providers are usable only when configured in this fork, so always label the row.
+            category: provider?.name ?? model.providerID,
             footer: free(model) ? "Free" : undefined,
             onSelect() {
               onSelect(model.providerID, model.id)
